@@ -104,7 +104,7 @@ public class TaskService {
         TaskRecord updated = task.withResult(status, message.summary(), message.output(), message.stderr(),
                 message.errorMessage(), finishedAt);
         tasks.put(message.taskId(), updated);
-        appendLog(message.taskId(), task.sessionId(), "INFO", "relay-server 已收到 Agent 模拟任务结果：" + status);
+        appendLog(message.taskId(), task.sessionId(), "INFO", "relay-server 已收到 Agent 真实任务结果：" + status);
     }
 
     private void appendLog(String taskId, String sessionId, String level, String message) {

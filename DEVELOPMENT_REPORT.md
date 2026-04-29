@@ -468,3 +468,97 @@ java -version
 ### 下一阶段计划
 
 下一阶段应严格按 `tasks/phase-05-readonly-operations.md` 执行。如果开始实现真实只读文件能力，必须统一使用 `PathSandbox` 校验路径，所有读取限制在用户手动选择的授权目录内，并继续保持 Agent UI 可见和操作日志可审计。
+
+## Phase 05：list_dir / read_file 只读操作
+
+### 本次任务目标
+
+根据 `tasks/phase-05-readonly-operations.md`，实现 Agent 端 `LIST_DIR` 和 `READ_FILE` 的真实只读执行能力，所有文件路径必须经过 `PathSandbox` 校验，并通过 STOMP `/app/agent/task-result` 返回真实结果。
+
+### 实际完成内容
+
+- 新增 `FileSystemService`：
+  - `listDirectory(String relativePath)` 返回真实目录项列表，包含 `name`、`size`、`modifiedTime`、`directory`。
+  - `readFile(String relativePath)` 返回真实 UTF-8 文本文件内容。
+  - 文件读取最大 1MB，超过限制时只返回文件信息和说明，不返回正文。
+  - 检测到二进制文件时只返回文件信息和说明，不返回正文。
+  - 所有路径统一通过 `PathSandbox.resolveSecurely` 校验。
+- 新增 `TaskExecutor`：
+  - 根据 `TaskType` 分发 `LIST_DIR` / `READ_FILE`。
+  - 使用后台线程池异步执行，不阻塞 JavaFX UI 线程。
+  - 成功和失败都包装为 `TaskResultMessage`。
+  - 不属于 Phase 05 范围的任务类型返回失败结果，不做模拟执行。
+- 更新 `AgentConnectionClient`：
+  - 连接时基于用户授权目录创建 `PathSandbox`、`FileSystemService` 和 `TaskExecutor`。
+  - 收到任务后改为异步真实执行，并把结果发送到 `/app/agent/task-result`。
+  - 任务日志仍通过 `/app/agent/task-log` 上报。
+- 更新 Agent UI：
+  - 将“本阶段只返回模拟结果”改为真实只读执行提示。
+  - 新增可折叠“任务结果（文件列表 / 文件内容）”区域，用于展示目录列表或文件读取结果。
+- 更新 Relay Server：
+  - `TaskService.receiveTaskResult` 继续存储真实 `summary/output/stderr/errorMessage`。
+  - 日志文案从“模拟任务结果”改为“真实任务结果”。
+- 新增 `FileSystemServiceTest`，覆盖目录列表、文本读取、路径越界拒绝、二进制文件跳过内容。
+
+### 修改/新增文件
+
+- `agent-client/pom.xml`
+- `agent-client/src/main/java/com/airh/agent/filesystem/FileSystemService.java`
+- `agent-client/src/main/java/com/airh/agent/executor/TaskExecutor.java`
+- `agent-client/src/main/java/com/airh/agent/connection/AgentConnectionClient.java`
+- `agent-client/src/main/java/com/airh/agent/connection/AgentConnectionListener.java`
+- `agent-client/src/main/java/com/airh/agent/ui/AgentClientApplication.java`
+- `agent-client/src/test/java/com/airh/agent/filesystem/FileSystemServiceTest.java`
+- `relay-server/src/main/java/com/airh/relay/task/TaskService.java`
+- `DEVELOPMENT_REPORT.md`
+- `复现记录.md`
+
+### 使用过的关键命令
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package
+```
+
+结果：`BUILD SUCCESS`。
+
+```powershell
+java -version
+```
+
+结果：OpenJDK 21.0.9 Temurin。
+
+```powershell
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -version
+```
+
+结果：Apache Maven 3.9.9，Java 21.0.9，Windows 11。
+
+### 测试结果
+
+- 已执行全量 Maven Reactor 构建：`BUILD SUCCESS`。
+- `FileSystemServiceTest`：`Tests run: 4, Failures: 0, Errors: 0, Skipped: 0`。
+- `PathSandboxTest`：`Tests run: 2, Failures: 0, Errors: 0, Skipped: 0`。
+- Agent 端总测试：`Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`。
+- 本轮未自动启动 JavaFX GUI 做端到端人工验证；启动和手工验证命令见 `复现记录.md`。
+
+### 环境信息
+
+- 操作系统：Windows 11
+- Java：OpenJDK 21.0.9 Temurin
+- Maven：项目局部 Apache Maven 3.9.9
+- Spring Boot：3.3.5
+- JavaFX：21.0.5
+
+### 当前问题
+
+- `READ_FILE` 当前按 UTF-8 文本读取；非 UTF-8 内容会按不可安全返回的文件处理，只返回文件信息，不返回正文。
+- 大于 1MB 的文件当前不读取正文，只返回文件信息和限制说明。
+- 本阶段未实现写文件、命令执行、补丁应用或报告生成，这些仍留给后续 phase。
+- 未做 GUI 端到端人工验证，但核心只读能力已通过单元测试和全量构建验证。
+
+### 下一步建议
+
+- 按 Phase 06 再实现写文件和补丁能力，必须先做修改前备份。
+- 后续 MCP Bridge 接入时，统一使用 `payload.data.path` 传递相对路径。
+- 继续保持所有 Agent 端操作可见、可断开、可审计。

@@ -11,5 +11,7 @@ public interface AgentConnectionListener {
 
     void onTaskFinished(String taskId, String status, String summary);
 
+    void onTaskOutput(String taskId, String output);
+
     void onLog(String message);
 }

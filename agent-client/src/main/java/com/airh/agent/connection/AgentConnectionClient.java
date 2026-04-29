@@ -1,10 +1,11 @@
 package com.airh.agent.connection;
 
+import com.airh.agent.executor.TaskExecutor;
+import com.airh.agent.filesystem.FileSystemService;
+import com.airh.agent.safety.PathSandbox;
 import com.airh.protocol.dto.AgentHelloMessage;
 import com.airh.protocol.dto.HeartbeatMessage;
 import com.airh.protocol.dto.TaskLogMessage;
-import com.airh.protocol.dto.TaskResultMessage;
-import com.airh.protocol.enums.TaskStatus;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
@@ -16,6 +17,7 @@ import org.springframework.web.socket.messaging.WebSocketStompClient;
 
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -37,6 +39,7 @@ public class AgentConnectionClient {
     private WebSocketStompClient stompClient;
     private StompSession stompSession;
     private ScheduledFuture<?> heartbeatTask;
+    private TaskExecutor taskExecutor;
     private String sessionId;
 
     public AgentConnectionClient(String deviceId, String deviceName, AgentConnectionListener listener) {
@@ -53,6 +56,8 @@ public class AgentConnectionClient {
 
         String websocketUrl = toWebSocketUrl(serverUrl);
         listener.onConnecting(websocketUrl);
+        taskExecutor = new TaskExecutor(new FileSystemService(new PathSandbox(Path.of(authorizedDirectory))),
+                (taskId, message) -> sendTaskLog(taskId, "INFO", message));
 
         stompClient = new WebSocketStompClient(new StandardWebSocketClient());
         stompClient.setMessageConverter(new MappingJackson2MessageConverter());
@@ -93,6 +98,10 @@ public class AgentConnectionClient {
         }
         stompSession = null;
         sessionId = null;
+        if (taskExecutor != null) {
+            taskExecutor.close();
+            taskExecutor = null;
+        }
         listener.onDisconnected("已手动断开");
     }
 
@@ -190,43 +199,20 @@ public class AgentConnectionClient {
             Object payload = task.get("payload");
             String payloadSummary = summarizePayload(payload);
             listener.onTaskStarted(taskId, taskType, payloadSummary);
-            sendTaskLog(taskId, "INFO", "Agent 已收到任务：" + taskType + "，本阶段只返回模拟结果");
-            sendTaskLog(taskId, "INFO", "模拟处理任务，不执行真实命令，不读写真实文件");
+            sendTaskLog(taskId, "INFO", "Agent 已收到任务：" + taskType + "，准备异步执行");
+            if (taskExecutor == null) {
+                sendTaskLog(taskId, "ERROR", "任务执行器未初始化");
+                return;
+            }
 
-            SimulatedResult result = simulate(taskType);
-            stompSession.send("/app/agent/task-result", new TaskResultMessage(
-                    taskId,
-                    sessionId,
-                    TaskStatus.SUCCESS,
-                    result.summary(),
-                    result.output(),
-                    result.stderr(),
-                    null,
-                    Instant.now()
-            ));
-            listener.onTaskFinished(taskId, TaskStatus.SUCCESS.name(), result.summary());
-        }
-
-        private void sendTaskLog(String taskId, String level, String message) {
-            stompSession.send("/app/agent/task-log", new TaskLogMessage(
-                    taskId,
-                    sessionId,
-                    level,
-                    message,
-                    Instant.now()
-            ));
-            listener.onLog("任务日志已上报：" + message);
-        }
-
-        private SimulatedResult simulate(String taskType) {
-            return switch (taskType) {
-                case "LIST_DIR" -> new SimulatedResult("模拟目录列表已生成", "[模拟] src/\n[模拟] pom.xml\n[模拟] README.md", "");
-                case "READ_FILE" -> new SimulatedResult("模拟文件内容已生成", "[模拟文件内容] 本阶段不会读取真实文件。", "");
-                case "RUN_COMMAND" -> new SimulatedResult("模拟命令输出已生成", "[模拟 stdout] command completed without execution", "[模拟 stderr] none");
-                case "WRITE_FILE" -> new SimulatedResult("模拟写入成功", "[模拟] 文件写入请求已接收，但未写入磁盘。", "");
-                case "APPLY_PATCH" -> new SimulatedResult("模拟补丁应用成功", "[模拟] 补丁请求已接收，但未修改任何文件。", "");
-                default -> new SimulatedResult("模拟任务完成", "[模拟] 未识别任务类型，已按协议返回成功。", "");
-            };
+            taskExecutor.execute(taskId, sessionId, taskType, payload)
+                    .thenAccept(result -> {
+                        if (isConnected()) {
+                            stompSession.send("/app/agent/task-result", result);
+                        }
+                        listener.onTaskOutput(taskId, result.output());
+                        listener.onTaskFinished(taskId, result.status().name(), result.summary());
+                    });
         }
 
         private String summarizePayload(Object payload) {
@@ -238,6 +224,16 @@ public class AgentConnectionClient {
         }
     }
 
-    private record SimulatedResult(String summary, String output, String stderr) {
+    private void sendTaskLog(String taskId, String level, String message) {
+        if (isConnected()) {
+            stompSession.send("/app/agent/task-log", new TaskLogMessage(
+                    taskId,
+                    sessionId,
+                    level,
+                    message,
+                    Instant.now()
+            ));
+        }
+        listener.onLog("任务日志已上报：" + message);
     }
 }

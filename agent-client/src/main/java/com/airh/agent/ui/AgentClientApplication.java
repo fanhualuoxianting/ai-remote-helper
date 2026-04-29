@@ -11,6 +11,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -47,6 +48,13 @@ public class AgentClientApplication extends Application {
         logs.setPromptText("实时日志");
         logs.setEditable(false);
         logs.setPrefRowCount(12);
+
+        TextArea taskOutput = new TextArea();
+        taskOutput.setPromptText("任务结果");
+        taskOutput.setEditable(false);
+        taskOutput.setPrefRowCount(8);
+        TitledPane taskOutputPane = new TitledPane("任务结果（文件列表 / 文件内容）", taskOutput);
+        taskOutputPane.setExpanded(false);
 
         Button chooseDirectoryButton = new Button("选择授权目录");
         Button connectButton = new Button("连接");
@@ -92,7 +100,7 @@ public class AgentClientApplication extends Application {
 
         HBox serverRow = new HBox(8, new Label("服务器地址："), serverUrl);
         HBox actions = new HBox(8, chooseDirectoryButton, connectButton, disconnectButton);
-        VBox root = new VBox(12, title, serverRow, status, deviceId, connectionCode, authorizedDirectory, currentTask, logs, actions);
+        VBox root = new VBox(12, title, serverRow, status, deviceId, connectionCode, authorizedDirectory, currentTask, logs, taskOutputPane, actions);
         root.setPadding(new Insets(16));
 
         stage.setTitle("AI Remote Helper Agent");
@@ -100,7 +108,7 @@ public class AgentClientApplication extends Application {
         stage.setOnCloseRequest(event -> connectionClient.shutdown());
         stage.show();
 
-        UiConnectionListener.bind(status, connectionCode, currentTask, logs, connectButton, disconnectButton);
+        UiConnectionListener.bind(status, connectionCode, currentTask, logs, taskOutput, taskOutputPane, connectButton, disconnectButton);
         appendLog(logs, "Agent UI 已启动，等待用户选择授权目录并连接");
     }
 
@@ -125,14 +133,19 @@ public class AgentClientApplication extends Application {
         private static Label connectionCode;
         private static Label currentTask;
         private static TextArea logs;
+        private static TextArea taskOutput;
+        private static TitledPane taskOutputPane;
         private static Button connectButton;
         private static Button disconnectButton;
 
-        static void bind(Label statusLabel, Label connectionCodeLabel, Label currentTaskLabel, TextArea logsArea, Button connect, Button disconnect) {
+        static void bind(Label statusLabel, Label connectionCodeLabel, Label currentTaskLabel, TextArea logsArea,
+                         TextArea taskOutputArea, TitledPane outputPane, Button connect, Button disconnect) {
             status = statusLabel;
             connectionCode = connectionCodeLabel;
             currentTask = currentTaskLabel;
             logs = logsArea;
+            taskOutput = taskOutputArea;
+            taskOutputPane = outputPane;
             connectButton = connect;
             disconnectButton = disconnect;
         }
@@ -169,7 +182,7 @@ public class AgentClientApplication extends Application {
                 currentTask.setText("当前任务：" + taskId + " / " + taskType);
                 appendLog(logs, "收到任务：" + taskId + "，类型：" + taskType);
                 appendLog(logs, "任务 payload 摘要：" + payloadSummary);
-                appendLog(logs, "任务开始：本阶段只返回模拟结果");
+                appendLog(logs, "任务开始：异步执行真实只读操作");
             });
         }
 
@@ -178,6 +191,14 @@ public class AgentClientApplication extends Application {
             Platform.runLater(() -> {
                 currentTask.setText("当前任务：无");
                 appendLog(logs, "任务结束：" + taskId + "，状态：" + taskStatus + "，" + summary);
+            });
+        }
+
+        @Override
+        public void onTaskOutput(String taskId, String output) {
+            Platform.runLater(() -> {
+                taskOutput.setText("任务：" + taskId + System.lineSeparator() + output);
+                taskOutputPane.setExpanded(true);
             });
         }
 
