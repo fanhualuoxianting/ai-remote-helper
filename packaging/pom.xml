@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.airh</groupId>
+        <artifactId>ai-remote-helper</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>packaging</artifactId>
+    <name>packaging</name>
+    <packaging>pom</packaging>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.panteleyev</groupId>
+                <artifactId>jpackage-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <name>AI-Remote-Helper-Agent</name>
+                    <appVersion>0.1.0</appVersion>
+                    <vendor>AI Remote Helper</vendor>
+                    <destination>dist</destination>
+                    <type>APP_IMAGE</type>
+                    <mainJar>agent-client-0.1.0-SNAPSHOT.jar</mainJar>
+                    <mainClass>com.airh.agent.AgentClientApplication</mainClass>
+                    <modulePath>
+                        <path>agent-client/target</path>
+                    </modulePath>
+                    <javaOptions>
+                        <option>--add-opens</option>
+                        <option>javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</option>
+                    </javaOptions>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
