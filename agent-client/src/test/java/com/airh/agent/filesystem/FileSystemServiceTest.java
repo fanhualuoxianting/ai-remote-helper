@@ -60,4 +60,70 @@ class FileSystemServiceTest {
         assertFalse(result.contentReturned());
         assertEquals(null, result.content());
     }
+
+    @Test
+    void writeFileCreatesNewFileInsideAuthorizedDirectory() throws Exception {
+        FileSystemService service = new FileSystemService(new PathSandbox(authorizedDirectory));
+
+        var result = service.writeFile("docs/note.txt", "hello\nworld\n");
+
+        assertEquals("hello\nworld\n", Files.readString(authorizedDirectory.resolve("docs/note.txt"), StandardCharsets.UTF_8));
+        assertEquals(Path.of("docs", "note.txt").toString(), result.path());
+        assertEquals(null, result.backupPath());
+        assertEquals(2, result.diffSummary().addedLines());
+    }
+
+    @Test
+    void writeFileBacksUpExistingFileAndKeepsLastThreeVersions() throws Exception {
+        PathSandbox sandbox = new PathSandbox(authorizedDirectory);
+        FileSystemService service = new FileSystemService(sandbox);
+        BackupService backupService = new BackupService(sandbox);
+        Files.writeString(authorizedDirectory.resolve("note.txt"), "version-0\n", StandardCharsets.UTF_8);
+
+        for (int index = 1; index <= 5; index++) {
+            service.writeFile("note.txt", "version-" + index + "\n");
+        }
+
+        assertEquals("version-5\n", Files.readString(authorizedDirectory.resolve("note.txt"), StandardCharsets.UTF_8));
+        var backups = backupService.listBackups("note.txt");
+        assertEquals(3, backups.size());
+        assertTrue(backups.stream().anyMatch(path -> {
+            try {
+                return Files.readString(path, StandardCharsets.UTF_8).equals("version-4\n");
+            } catch (Exception exception) {
+                return false;
+            }
+        }));
+    }
+
+    @Test
+    void writeFileRejectsPathOutsideAuthorizedDirectory() {
+        FileSystemService service = new FileSystemService(new PathSandbox(authorizedDirectory));
+
+        assertThrows(SecurityException.class, () -> service.writeFile("../outside.txt", "nope"));
+    }
+
+    @Test
+    void applyPatchUpdatesExistingFileAndCreatesBackup() throws Exception {
+        Files.writeString(authorizedDirectory.resolve("note.txt"), "alpha\nbeta\ngamma\n", StandardCharsets.UTF_8);
+        FileSystemService service = new FileSystemService(new PathSandbox(authorizedDirectory));
+        String patch = """
+                --- a/note.txt
+                +++ b/note.txt
+                @@ -1,3 +1,4 @@
+                 alpha
+                -beta
+                +bravo
+                +charlie
+                 gamma
+                """;
+
+        var result = service.applyPatch("note.txt", patch);
+
+        assertEquals("alpha\r\nbravo\r\ncharlie\r\ngamma\r\n",
+                Files.readString(authorizedDirectory.resolve("note.txt"), StandardCharsets.UTF_8));
+        assertTrue(result.backupPath() != null && Files.exists(Path.of(result.backupPath())));
+        assertEquals(2, result.diffSummary().addedLines());
+        assertEquals(1, result.diffSummary().removedLines());
+    }
 }

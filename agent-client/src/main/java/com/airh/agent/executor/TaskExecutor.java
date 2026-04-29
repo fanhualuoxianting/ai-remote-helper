@@ -48,6 +48,8 @@ public class TaskExecutor implements AutoCloseable {
             return switch (taskType) {
                 case LIST_DIR -> executeListDirectory(taskId, sessionId, relativePath);
                 case READ_FILE -> executeReadFile(taskId, sessionId, relativePath);
+                case WRITE_FILE -> executeWriteFile(taskId, sessionId, relativePath, extractText(payload, "content", "text"));
+                case APPLY_PATCH -> executeApplyPatch(taskId, sessionId, relativePath, extractText(payload, "patch", "diff"));
                 default -> unsupported(taskId, sessionId, taskType);
             };
         } catch (Exception exception) {
@@ -77,8 +79,26 @@ public class TaskExecutor implements AutoCloseable {
                 "", null, Instant.now());
     }
 
+    private TaskResultMessage executeWriteFile(String taskId, String sessionId, String relativePath, String content) throws JsonProcessingException, java.io.IOException {
+        var result = fileSystemService.writeFile(relativePath, content);
+        String summary = result.message() + "，" + result.diffSummary().summary();
+        taskLogSink.accept(taskId, summary);
+        return new TaskResultMessage(taskId, sessionId, TaskStatus.SUCCESS, summary,
+                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(result),
+                "", null, Instant.now());
+    }
+
+    private TaskResultMessage executeApplyPatch(String taskId, String sessionId, String relativePath, String patch) throws JsonProcessingException, java.io.IOException {
+        var result = fileSystemService.applyPatch(relativePath, patch);
+        String summary = result.message() + "，" + result.diffSummary().summary();
+        taskLogSink.accept(taskId, summary);
+        return new TaskResultMessage(taskId, sessionId, TaskStatus.SUCCESS, summary,
+                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(result),
+                "", null, Instant.now());
+    }
+
     private TaskResultMessage unsupported(String taskId, String sessionId, TaskType taskType) {
-        String message = "Phase 05 只支持 LIST_DIR 和 READ_FILE，当前任务暂不执行：" + taskType;
+        String message = "Phase 06 支持 LIST_DIR、READ_FILE、WRITE_FILE 和 APPLY_PATCH，当前任务暂不执行：" + taskType;
         taskLogSink.accept(taskId, message);
         return new TaskResultMessage(taskId, sessionId, TaskStatus.FAILED,
                 "不支持的任务类型", "", "", message, Instant.now());
@@ -93,6 +113,27 @@ public class TaskExecutor implements AutoCloseable {
             return firstText(dataMap, "path", "relativePath", "relative_path");
         }
         return firstText(payloadMap, "path", "relativePath", "relative_path");
+    }
+
+    private String extractText(Object payload, String... keys) {
+        if (!(payload instanceof Map<?, ?> payloadMap)) {
+            return "";
+        }
+        Object data = payloadMap.get("data");
+        if (data instanceof Map<?, ?> dataMap) {
+            return firstPresentText(dataMap, keys);
+        }
+        return firstPresentText(payloadMap, keys);
+    }
+
+    private String firstPresentText(Map<?, ?> values, String... keys) {
+        for (String key : keys) {
+            Object value = values.get(key);
+            if (value != null) {
+                return value.toString();
+            }
+        }
+        return "";
     }
 
     private String firstText(Map<?, ?> values, String... keys) {

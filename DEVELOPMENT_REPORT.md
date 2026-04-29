@@ -562,3 +562,96 @@ java -version
 - 按 Phase 06 再实现写文件和补丁能力，必须先做修改前备份。
 - 后续 MCP Bridge 接入时，统一使用 `payload.data.path` 传递相对路径。
 - 继续保持所有 Agent 端操作可见、可断开、可审计。
+
+## Phase 06：write_file / apply_patch 写入操作
+
+### 本次任务目标
+
+根据 `tasks/phase-06-write-operations.md`，实现 Agent 端 `WRITE_FILE` 和 `APPLY_PATCH` 的真实写入能力。所有写入必须限制在授权目录内，并在修改已有文件前自动创建备份，备份最多保留最近 3 个版本。
+
+### 实际完成内容
+
+- 新增 `BackupService`：
+  - 修改已有文件前备份到 `.ai-remote-helper/backups/{timestamp}/{relativePath}`。
+  - 备份保留原相对目录结构。
+  - 支持按文件列出备份。
+  - 支持清理旧备份，每个文件只保留最近 3 版。
+- 扩展 `FileSystemService`：
+  - 新增 `writeFile(String relativePath, String content)`。
+  - 新增 `applyPatch(String relativePath, String patch)`。
+  - 写入和补丁路径都通过 `PathSandbox.resolveSecurely` 校验。
+  - 写入已有文件和应用补丁前都会调用 `BackupService.backupFile`。
+  - 写入后返回 `WriteFileResult`，包含文件路径、大小、备份路径和 diff 摘要。
+  - `applyPatch` 支持常见 unified diff hunk 格式。
+- 更新 `TaskExecutor`：
+  - 增加 `WRITE_FILE` 分支，读取 payload 中的 `content` 或 `text`。
+  - 增加 `APPLY_PATCH` 分支，读取 payload 中的 `patch` 或 `diff`。
+  - 结果通过已有 `TaskResultMessage` 返回给 Relay Server。
+- 扩展 `FileSystemServiceTest`：
+  - 验证 `writeFile` 可以在授权目录内创建新文件。
+  - 验证修改已有文件会创建备份并只保留最近 3 个版本。
+  - 验证写入授权目录外路径会被拒绝。
+  - 验证 `applyPatch` 可以修改文件并创建备份。
+
+### 修改/新增文件
+
+- `agent-client/src/main/java/com/airh/agent/filesystem/BackupService.java`
+- `agent-client/src/main/java/com/airh/agent/filesystem/FileSystemService.java`
+- `agent-client/src/main/java/com/airh/agent/executor/TaskExecutor.java`
+- `agent-client/src/test/java/com/airh/agent/filesystem/FileSystemServiceTest.java`
+- `DEVELOPMENT_REPORT.md`
+- `复现记录.md`
+
+### 使用过的关键命令
+
+查看 Java 版本：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+java -version
+```
+
+查看项目局部 Maven 版本：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -version
+```
+
+按要求执行全量构建和测试：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package
+```
+
+结果：`BUILD SUCCESS`。
+
+### 测试结果
+
+- 已执行全量 Maven Reactor 构建：`BUILD SUCCESS`。
+- `FileSystemServiceTest`：`Tests run: 8, Failures: 0, Errors: 0, Skipped: 0`。
+- `PathSandboxTest`：`Tests run: 2, Failures: 0, Errors: 0, Skipped: 0`。
+- 全部测试：`Tests run: 10, Failures: 0, Errors: 0, Skipped: 0`。
+- 本轮未自动启动 JavaFX GUI 做端到端人工验证；启动和手工验证命令见 `复现记录.md`。
+
+### 环境信息
+
+- 操作系统：Windows 11
+- Java：OpenJDK 21.0.9 Temurin
+- Maven：项目局部 Apache Maven 3.9.9
+- Spring Boot：3.3.5
+- JavaFX：21.0.5
+
+### 当前问题
+
+- `applyPatch` 当前实现的是基础 unified diff hunk 解析，不是完整 `git apply` 兼容实现。
+- 写入内容按 UTF-8 处理；当前阶段不支持二进制写入。
+- 本阶段未实现 Agent UI diff 预览专区，只通过任务日志和任务结果返回 diff 摘要。
+- 本阶段未实现命令执行、报告生成、数据库持久化或 MCP Bridge 写入工具。
+
+### 下一步建议
+
+- 后续 Phase 07 如实现命令执行，必须继续限制 cwd 在授权目录内，并接入危险命令检测和超时控制。
+- 如果后续需要更完整补丁能力，可以引入成熟 diff/patch 库替代当前基础解析器。
+- Relay 和 MCP 侧创建 `WRITE_FILE` 任务时建议使用 `payload.data.path` 和 `payload.data.content`；创建 `APPLY_PATCH` 任务时建议使用 `payload.data.path` 和 `payload.data.patch`。
