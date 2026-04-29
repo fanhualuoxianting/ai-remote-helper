@@ -12,11 +12,17 @@ import com.airh.protocol.enums.RiskLevel;
 import com.airh.protocol.enums.TaskStatus;
 import com.airh.relay.device.DeviceConnection;
 import com.airh.relay.device.DeviceRegistry;
+import com.airh.relay.domain.TaskRecordEntity;
+import com.airh.relay.repository.TaskRecordRepository;
+import com.airh.relay.service.AuditService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -28,12 +34,20 @@ public class TaskService {
 
     private final DeviceRegistry deviceRegistry;
     private final SimpMessagingTemplate messagingTemplate;
+    private final TaskRecordRepository taskRecordRepository;
+    private final AuditService auditService;
+    private final ObjectMapper objectMapper;
     private final ConcurrentMap<String, TaskRecord> tasks = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, CopyOnWriteArrayList<TaskLog>> logsByTaskId = new ConcurrentHashMap<>();
 
-    public TaskService(DeviceRegistry deviceRegistry, SimpMessagingTemplate messagingTemplate) {
+    public TaskService(DeviceRegistry deviceRegistry, SimpMessagingTemplate messagingTemplate,
+                       TaskRecordRepository taskRecordRepository, AuditService auditService,
+                       ObjectMapper objectMapper) {
         this.deviceRegistry = deviceRegistry;
         this.messagingTemplate = messagingTemplate;
+        this.taskRecordRepository = taskRecordRepository;
+        this.auditService = auditService;
+        this.objectMapper = objectMapper;
     }
 
     public CreateTaskResponse createAndDispatch(String sessionId, CreateTaskRequest request) {
@@ -50,8 +64,14 @@ public class TaskService {
                 : request.timeoutSeconds();
         TaskPayload payload = request.payload() == null ? new TaskPayload(java.util.Map.of()) : request.payload();
         TaskRecord pending = new TaskRecord(taskId, sessionId, request.taskType(), payload, TaskStatus.PENDING,
-                timeoutSeconds, null, null, null, null, now, now);
+                timeoutSeconds, null, null, null, null, now, now, null);
         tasks.put(taskId, pending);
+        taskRecordRepository.save(toEntity(pending));
+        auditService.logEvent(sessionId, "TASK_CREATED", Map.of(
+                "taskId", taskId,
+                "taskType", request.taskType().name(),
+                "timeoutSeconds", String.valueOf(timeoutSeconds)
+        ));
         appendLog(taskId, sessionId, "INFO", "relay-server 创建任务并准备下发给 Agent");
 
         RemoteTask taskMessage = new RemoteTask(
@@ -66,22 +86,32 @@ public class TaskService {
                 now,
                 now.plusSeconds(timeoutSeconds)
         );
-        tasks.put(taskId, pending.withStatus(TaskStatus.RUNNING, Instant.now()));
+        TaskRecord running = pending.withStatus(TaskStatus.RUNNING, Instant.now());
+        tasks.put(taskId, running);
+        taskRecordRepository.save(toEntity(running));
+        auditService.logEvent(sessionId, "TASK_DISPATCHED", Map.of(
+                "taskId", taskId,
+                "deviceId", connection.deviceId()
+        ));
         appendLog(taskId, sessionId, "INFO", "relay-server 已通过 STOMP 下发任务");
         messagingTemplate.convertAndSend(agentTopic(connection.deviceId()), taskMessage);
         return new CreateTaskResponse(taskId, sessionId, TaskStatus.RUNNING);
     }
 
     public TaskRecord getTask(String taskId) {
-        TaskRecord task = tasks.get(taskId);
-        if (task == null) {
-            throw new IllegalArgumentException("任务不存在：" + taskId);
-        }
-        return task;
+        return taskRecordRepository.findById(taskId)
+                .map(this::toRecord)
+                .orElseGet(() -> {
+                    TaskRecord task = tasks.get(taskId);
+                    if (task == null) {
+                        throw new IllegalArgumentException("任务不存在：" + taskId);
+                    }
+                    return task;
+                });
     }
 
     public List<TaskLog> getLogs(String taskId) {
-        if (!tasks.containsKey(taskId)) {
+        if (!tasks.containsKey(taskId) && !taskRecordRepository.existsById(taskId)) {
             throw new IllegalArgumentException("任务不存在：" + taskId);
         }
         return List.copyOf(logsByTaskId.getOrDefault(taskId, new CopyOnWriteArrayList<>()));
@@ -104,6 +134,16 @@ public class TaskService {
         TaskRecord updated = task.withResult(status, message.summary(), message.output(), message.stderr(),
                 message.errorMessage(), finishedAt);
         tasks.put(message.taskId(), updated);
+        taskRecordRepository.findById(message.taskId())
+                .ifPresentOrElse(entity -> {
+                    entity.complete(status, message.summary(), message.output(), message.stderr(),
+                            message.errorMessage(), finishedAt);
+                    taskRecordRepository.save(entity);
+                }, () -> taskRecordRepository.save(toEntity(updated)));
+        auditService.logEvent(task.sessionId(), "TASK_RESULT_RECEIVED", Map.of(
+                "taskId", message.taskId(),
+                "status", status.name()
+        ));
         appendLog(message.taskId(), task.sessionId(), "INFO", "relay-server 已收到 Agent 真实任务结果：" + status);
     }
 
@@ -118,5 +158,59 @@ public class TaskService {
 
     private String agentTopic(String deviceId) {
         return "/topic/agent/" + deviceId + "/events";
+    }
+
+    private TaskRecordEntity toEntity(TaskRecord record) {
+        return new TaskRecordEntity(
+                record.taskId(),
+                record.sessionId(),
+                record.taskType(),
+                record.status(),
+                toJson(record.payload()),
+                record.summary(),
+                record.output(),
+                record.stderr(),
+                record.errorMessage(),
+                record.createdAt(),
+                record.updatedAt(),
+                record.completedAt()
+        );
+    }
+
+    private TaskRecord toRecord(TaskRecordEntity entity) {
+        return new TaskRecord(
+                entity.getTaskId(),
+                entity.getSessionId(),
+                entity.getTaskType(),
+                fromJson(entity.getPayload()),
+                entity.getStatus(),
+                DEFAULT_TIMEOUT_SECONDS,
+                entity.getSummary(),
+                entity.getOutput(),
+                entity.getStderr(),
+                entity.getError(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt(),
+                entity.getCompletedAt()
+        );
+    }
+
+    private String toJson(TaskPayload payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("任务 payload 序列化失败", e);
+        }
+    }
+
+    private TaskPayload fromJson(String payloadJson) {
+        if (payloadJson == null || payloadJson.isBlank()) {
+            return new TaskPayload(Map.of());
+        }
+        try {
+            return objectMapper.readValue(payloadJson, TaskPayload.class);
+        } catch (JsonProcessingException e) {
+            return new TaskPayload(Map.of("raw", payloadJson));
+        }
     }
 }

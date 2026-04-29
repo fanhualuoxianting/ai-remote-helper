@@ -867,3 +867,113 @@ git status --short
 - 后续继续 Phase 08 时，可新增 `SafetyChecker` 统一返回 `ALLOW / WARN / DENY` 和原因。
 - 增加 `safety-rules.json` 加载能力，让命令和路径规则可配置。
 - 将 `BLOCKED` 和 `HIGH` 事件统一上报 Relay Server 审计日志，并在 Agent UI 中实时显示拦截原因。
+
+## Phase 09：数据库集成（PostgreSQL + Redis）
+
+### 本次任务目标
+
+根据 `tasks/phase-09-database.md` 和用户指定范围，为 `relay-server` 接入 PostgreSQL 持久化任务记录和审计事件，并接入 Redis 缓存在线会话状态。
+
+### 实际完成内容
+
+- 在 `relay-server/pom.xml` 中新增 `spring-boot-starter-data-jpa`、`postgresql` 驱动和 `spring-boot-starter-data-redis`。
+- 在 `application.yml` 配置 PostgreSQL：`localhost:15432/testdb`，用户名/密码为 `postgres/postgres`。
+- 在 `application.yml` 配置 Redis：`localhost:16379`。
+- 新增 JPA 实体：
+  - `TaskRecordEntity` 映射 `task_records`。
+  - `AuditEventEntity` 映射 `audit_events`。
+- 新增 Repository：
+  - `TaskRecordRepository`
+  - `AuditEventRepository`
+- 新增 `DatabaseConfig` 启用 JPA auditing。
+- 更新 `TaskService`：
+  - 创建任务时写入 `task_records`。
+  - 下发任务时更新任务状态为 `RUNNING`。
+  - 收到 Agent 结果时更新任务状态、输出、错误和完成时间。
+  - `GET /api/tasks/{taskId}` 优先从数据库读取。
+- 新增 `AuditService`，记录 `TASK_CREATED`、`TASK_DISPATCHED`、`TASK_RESULT_RECEIVED` 审计事件。
+- 新增 `RedisConfig` 和 `SessionStateCache`，用 Redis 保存在线/离线 session 状态，TTL 为 5 分钟。
+- 更新 `DeviceRegistry`，在注册、心跳、断开时刷新 Redis session 缓存。
+- 新增 `relay-server/src/main/resources/db/migration/V1__init.sql`，记录 PostgreSQL 建表脚本。
+
+### 修改/新增文件
+
+- `relay-server/pom.xml`
+- `relay-server/src/main/resources/application.yml`
+- `relay-server/src/main/java/com/airh/relay/config/DatabaseConfig.java`
+- `relay-server/src/main/java/com/airh/relay/config/RedisConfig.java`
+- `relay-server/src/main/java/com/airh/relay/domain/TaskRecordEntity.java`
+- `relay-server/src/main/java/com/airh/relay/domain/AuditEventEntity.java`
+- `relay-server/src/main/java/com/airh/relay/repository/TaskRecordRepository.java`
+- `relay-server/src/main/java/com/airh/relay/repository/AuditEventRepository.java`
+- `relay-server/src/main/java/com/airh/relay/service/AuditService.java`
+- `relay-server/src/main/java/com/airh/relay/session/SessionStateCache.java`
+- `relay-server/src/main/java/com/airh/relay/device/DeviceRegistry.java`
+- `relay-server/src/main/java/com/airh/relay/task/TaskRecord.java`
+- `relay-server/src/main/java/com/airh/relay/task/TaskService.java`
+- `relay-server/src/main/resources/db/migration/V1__init.sql`
+- `DEVELOPMENT_REPORT.md`
+- `复现记录.md`
+
+### 使用过的关键命令
+
+读取任务说明：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+Get-Content -LiteralPath tasks/phase-09-database.md
+```
+
+查看环境版本：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+java -version
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -version
+```
+
+执行全量构建和测试：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package
+```
+
+查看修改状态：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+git status --short
+```
+
+### 构建和测试结果
+
+- 已执行 `.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package`。
+- 结果：`BUILD SUCCESS`。
+- `common-safety` 测试：`Tests run: 9, Failures: 0, Errors: 0, Skipped: 0`。
+- `relay-server`：编译通过，当前没有测试源码，Maven 输出 `No tests to run`。
+- `agent-client` 测试：`Tests run: 17, Failures: 0, Errors: 0, Skipped: 0`。
+- 全量实际测试合计：`Tests run: 26, Failures: 0, Errors: 0, Skipped: 0`。
+
+### 环境信息
+
+- 操作系统：Windows 11 10.0 amd64
+- Java：OpenJDK 21.0.9 Temurin
+- Maven：项目局部 Apache Maven 3.9.9
+- Maven 路径：`.tools\apache-maven-3.9.9\bin\mvn.cmd`
+- Spring Boot：3.3.5
+- PostgreSQL 连接配置：`jdbc:postgresql://localhost:15432/testdb`
+- Redis 连接配置：`localhost:16379`
+
+### 当前问题
+
+- 本轮按要求完成构建验证，但未启动本地 PostgreSQL/Redis 做真实接口联调。
+- `V1__init.sql` 已创建为建表脚本；当前项目未引入 Flyway，运行时实际建表依赖 `spring.jpa.hibernate.ddl-auto=update`。
+- 任务日志 `TaskLog` 仍保持内存存储，本阶段只持久化任务记录和审计事件。
+- `SessionStateCache` 将 Redis 作为缓存层处理；Redis 不可用时不会阻断现有内存在线设备注册逻辑。
+
+### 下一步建议
+
+- 如果后续要严格执行 SQL 迁移脚本，应引入 Flyway 或 Liquibase，并关闭生产环境中的 `ddl-auto=update`。
+- 为 `TaskRecordRepository` 和 `AuditEventRepository` 增加 Testcontainers 或专用测试库集成测试，避免测试依赖开发机已有数据库状态。
+- 后续可将任务日志也持久化，支持分页查询和审计追踪。

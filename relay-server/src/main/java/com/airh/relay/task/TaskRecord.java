@@ -18,16 +18,17 @@ public record TaskRecord(
         String stderr,
         String errorMessage,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        Instant completedAt
 ) {
     public TaskRecord withStatus(TaskStatus newStatus, Instant updatedAt) {
         return new TaskRecord(taskId, sessionId, taskType, payload, newStatus, timeoutSeconds,
-                summary, output, stderr, errorMessage, createdAt, updatedAt);
+                summary, output, stderr, errorMessage, createdAt, updatedAt, completedAt);
     }
 
     public TaskRecord withResult(TaskStatus newStatus, String resultSummary, String stdout, String resultStderr,
                                  String resultErrorMessage, Instant updatedAt) {
         return new TaskRecord(taskId, sessionId, taskType, payload, newStatus, timeoutSeconds,
-                resultSummary, stdout, resultStderr, resultErrorMessage, createdAt, updatedAt);
+                resultSummary, stdout, resultStderr, resultErrorMessage, createdAt, updatedAt, updatedAt);
     }
 }

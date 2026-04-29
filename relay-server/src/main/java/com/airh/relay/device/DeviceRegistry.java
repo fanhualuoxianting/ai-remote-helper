@@ -1,6 +1,7 @@
 package com.airh.relay.device;
 
 import com.airh.protocol.dto.AgentHelloMessage;
+import com.airh.relay.session.SessionStateCache;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -16,8 +17,13 @@ import java.util.concurrent.ConcurrentMap;
 public class DeviceRegistry {
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    private final SessionStateCache sessionStateCache;
     private final ConcurrentMap<String, DeviceConnection> devicesById = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> deviceIdByStompSessionId = new ConcurrentHashMap<>();
+
+    public DeviceRegistry(SessionStateCache sessionStateCache) {
+        this.sessionStateCache = sessionStateCache;
+    }
 
     public DeviceConnection register(AgentHelloMessage helloMessage, String stompSessionId) {
         String now = Instant.now().toString();
@@ -36,6 +42,7 @@ public class DeviceRegistry {
         );
         devicesById.put(helloMessage.deviceId(), connection);
         deviceIdByStompSessionId.put(stompSessionId, helloMessage.deviceId());
+        sessionStateCache.cacheOnline(connection);
         return connection;
     }
 
@@ -46,6 +53,7 @@ public class DeviceRegistry {
         }
         DeviceConnection updated = connection.withHeartbeat(Instant.now().toString());
         devicesById.put(deviceId, updated);
+        sessionStateCache.cacheOnline(updated);
         return Optional.of(updated);
     }
 
@@ -60,6 +68,7 @@ public class DeviceRegistry {
         }
         DeviceConnection offline = connection.offline(Instant.now().toString());
         devicesById.put(deviceId, offline);
+        sessionStateCache.cacheOffline(offline);
         return Optional.of(offline);
     }
 
