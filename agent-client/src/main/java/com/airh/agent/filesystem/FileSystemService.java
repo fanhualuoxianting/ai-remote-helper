@@ -1,6 +1,8 @@
 package com.airh.agent.filesystem;
 
 import com.airh.agent.safety.PathSandbox;
+import com.airh.protocol.enums.RiskLevel;
+import com.airh.safety.SensitiveFileProtector;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -15,17 +17,21 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 public class FileSystemService {
     public static final long MAX_TEXT_FILE_BYTES = 1024L * 1024L;
+    private static final Logger LOGGER = Logger.getLogger(FileSystemService.class.getName());
 
     private final PathSandbox pathSandbox;
     private final BackupService backupService;
+    private final SensitiveFileProtector sensitiveFileProtector;
 
     public FileSystemService(PathSandbox pathSandbox) {
         this.pathSandbox = Objects.requireNonNull(pathSandbox, "pathSandbox must not be null");
         this.backupService = new BackupService(pathSandbox);
+        this.sensitiveFileProtector = new SensitiveFileProtector();
     }
 
     public List<FileEntry> listDirectory(String relativePath) throws IOException {
@@ -48,6 +54,7 @@ public class FileSystemService {
 
     public ReadFileResult readFile(String relativePath) throws IOException {
         Path file = pathSandbox.resolveSecurely(normalizeInputPath(relativePath));
+        checkSensitivePath(file, "读取");
         if (!Files.exists(file)) {
             throw new IOException("文件不存在：" + relativePath);
         }
@@ -83,6 +90,7 @@ public class FileSystemService {
     public WriteFileResult writeFile(String relativePath, String content) throws IOException {
         String normalizedRelativePath = normalizeWritePath(relativePath);
         Path file = pathSandbox.resolveSecurely(normalizedRelativePath);
+        checkSensitivePath(file, "写入");
         if (Files.exists(file) && !Files.isRegularFile(file)) {
             throw new IOException("目标不是普通文件：" + relativePath);
         }
@@ -103,6 +111,7 @@ public class FileSystemService {
     public WriteFileResult applyPatch(String relativePath, String patch) throws IOException {
         String normalizedRelativePath = normalizeWritePath(relativePath);
         Path file = pathSandbox.resolveSecurely(normalizedRelativePath);
+        checkSensitivePath(file, "应用补丁");
         if (!Files.exists(file)) {
             throw new IOException("文件不存在，无法应用补丁：" + relativePath);
         }
@@ -142,6 +151,16 @@ public class FileSystemService {
             throw new SecurityException("写入路径必须是具体文件路径");
         }
         return pathSandbox.normalize(relativePath);
+    }
+
+    private void checkSensitivePath(Path path, String operation) {
+        RiskLevel riskLevel = sensitiveFileProtector.checkPath(path);
+        if (riskLevel == RiskLevel.BLOCKED) {
+            throw new SecurityException(operation + "命中敏感文件阻断规则，拒绝访问：" + path);
+        }
+        if (riskLevel == RiskLevel.HIGH) {
+            LOGGER.warning(operation + "命中 HIGH 敏感路径规则，将继续执行：" + path);
+        }
     }
 
     private String applyUnifiedPatch(String oldContent, String patch) throws IOException {

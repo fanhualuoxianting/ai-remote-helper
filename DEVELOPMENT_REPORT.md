@@ -757,3 +757,113 @@ cd E:\openclaw-project\ai-remote-helper
 - 后续 Relay Server 端应补齐任务日志持久化和分页查询。
 - 后续 Agent UI 可增加专门的命令输出追加区域，区分 stdout/stderr 样式。
 - MCP Bridge 创建 `RUN_COMMAND` 任务时建议使用 `payload.data.command`、`payload.data.cwd` 和 `payload.data.timeoutSeconds`。
+
+## Phase 08：危险命令拦截 + 敏感文件保护
+
+### 本次任务目标
+
+根据 `tasks/phase-08-safety-interception.md` 和本轮用户指定范围，增强 `common-safety` 的危险命令检测规则，新增敏感文件路径保护器，并在 Agent 端文件读写入口接入敏感路径检查。不实现本阶段未要求的 `safety-rules.json`、Agent UI 拦截展示、Relay 审计 DTO 或规则按任务类型配置。
+
+### 实际完成内容
+
+- 增强 `CommandRiskDetector`：
+  - `BLOCKED`：拦截 `rm -rf /`、`format`、`del /f /s`、`reg delete`、`shutdown`、`mkfs`、`dd if=... of=/dev/...`、重定向到 `/dev/sda` 等磁盘设备、`curl|sh`、`wget|sh`。
+  - `HIGH`：识别 `sudo`、`su -`、`chmod 777`、`chown`、非根目录 `rm -rf`、`netsh`、`sc stop/delete`、`taskkill /f`。
+  - `MEDIUM`：识别普通 `rm`、`del`、`kill`、`service ... stop`。
+- 新增 `SensitiveFileProtector`：
+  - `BLOCKED`：`~/.ssh/`、`~/.gnupg/`、Chrome/Firefox/Edge 浏览器 profile、`/etc/passwd`、`/etc/shadow`、`/etc/sudoers`、Windows `System32\config\SAM/SECURITY/SYSTEM` 等系统凭据路径。
+  - `HIGH`：`~/.bashrc`、`~/.zshrc`、`~/.profile`、Windows Startup 启动目录、hosts 文件。
+  - 提供 `checkPath(String path)` 和 `checkPath(Path path)`，返回 `RiskLevel`。
+- 更新 `SensitiveFileGuard`，内部复用 `SensitiveFileProtector`，保持旧接口可用。
+- 在 `FileSystemService` 中接入 `SensitiveFileProtector`：
+  - `readFile`、`writeFile`、`applyPatch` 在路径沙箱解析后检查敏感路径。
+  - `BLOCKED` 抛出 `SecurityException` 拒绝访问。
+  - `HIGH` 使用 Java logger 记录警告，但继续执行。
+- 为 `common-safety` 增加 JUnit 5 测试依赖和 Surefire 插件。
+- 新增单元测试：
+  - `CommandRiskDetectorTest`
+  - `SensitiveFileProtectorTest`
+  - 扩展 `FileSystemServiceTest`，覆盖授权目录内 `.ssh` / `.gnupg` 敏感路径拦截。
+
+### 修改/新增文件
+
+- `common-safety/pom.xml`
+- `common-safety/src/main/java/com/airh/safety/CommandRiskDetector.java`
+- `common-safety/src/main/java/com/airh/safety/SensitiveFileGuard.java`
+- `common-safety/src/main/java/com/airh/safety/SensitiveFileProtector.java`
+- `common-safety/src/test/java/com/airh/safety/CommandRiskDetectorTest.java`
+- `common-safety/src/test/java/com/airh/safety/SensitiveFileProtectorTest.java`
+- `agent-client/src/main/java/com/airh/agent/filesystem/FileSystemService.java`
+- `agent-client/src/test/java/com/airh/agent/filesystem/FileSystemServiceTest.java`
+- `DEVELOPMENT_REPORT.md`
+- `复现记录.md`
+
+### 使用过的关键命令
+
+读取任务说明：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+Get-Content -Raw tasks\phase-08-safety-interception.md
+```
+
+查看项目文件和现有实现：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+rg --files
+rg "CommandRiskDetector|SensitiveFileGuard|RiskLevel" -n
+Get-Content -Raw common-safety\src\main\java\com\airh\safety\CommandRiskDetector.java
+Get-Content -Raw agent-client\src\main\java\com\airh\agent\filesystem\FileSystemService.java
+```
+
+查看环境版本：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+java -version
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -version
+```
+
+执行全量构建和测试：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package
+```
+
+查看修改状态：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+git status --short
+```
+
+### 构建和测试结果
+
+- 已执行 `.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package`。
+- 结果：`BUILD SUCCESS`。
+- `common-safety` 测试：`Tests run: 9, Failures: 0, Errors: 0, Skipped: 0`。
+- `agent-client` 测试：`Tests run: 17, Failures: 0, Errors: 0, Skipped: 0`。
+- 全量实际测试合计：`Tests run: 26, Failures: 0, Errors: 0, Skipped: 0`。
+
+### 环境信息
+
+- 操作系统：Windows 11 10.0 amd64
+- Java：OpenJDK 21.0.9 Temurin
+- Maven：项目局部 Apache Maven 3.9.9
+- Maven 路径：`.tools\apache-maven-3.9.9\bin\mvn.cmd`
+- Spring Boot：3.3.5
+- JavaFX：21.0.5
+
+### 当前问题
+
+- 本轮只实现用户指定的核心拦截能力，没有实现 `phase-08` 文档中列出的可配置规则文件 `safety-rules.json`、Agent UI 拦截展示和 Relay 审计事件持久化。
+- `HIGH` 敏感路径目前仅通过 Agent 本地 logger 记录警告并继续执行，还没有统一进入 Relay 审计日志。
+- 命令检测仍是黑名单/正则规则，不是完整 shell AST 解析；后续如要覆盖复杂转义、变量拼接和多层 shell，需要引入更强的解析或执行前策略。
+
+### 下一步建议
+
+- 后续继续 Phase 08 时，可新增 `SafetyChecker` 统一返回 `ALLOW / WARN / DENY` 和原因。
+- 增加 `safety-rules.json` 加载能力，让命令和路径规则可配置。
+- 将 `BLOCKED` 和 `HIGH` 事件统一上报 Relay Server 审计日志，并在 Agent UI 中实时显示拦截原因。

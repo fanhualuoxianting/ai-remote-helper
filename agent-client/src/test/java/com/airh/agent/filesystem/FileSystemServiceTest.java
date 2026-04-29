@@ -50,6 +50,15 @@ class FileSystemServiceTest {
     }
 
     @Test
+    void readFileRejectsBlockedSensitivePathInsideAuthorizedDirectory() throws Exception {
+        Files.createDirectories(authorizedDirectory.resolve(".ssh"));
+        Files.writeString(authorizedDirectory.resolve(".ssh/id_rsa"), "private-key", StandardCharsets.UTF_8);
+        FileSystemService service = new FileSystemService(new PathSandbox(authorizedDirectory));
+
+        assertThrows(SecurityException.class, () -> service.readFile(".ssh/id_rsa"));
+    }
+
+    @Test
     void skipsBinaryFileContent() throws Exception {
         Files.write(authorizedDirectory.resolve("image.bin"), new byte[]{0x01, 0x02, 0x00, 0x03});
         FileSystemService service = new FileSystemService(new PathSandbox(authorizedDirectory));
@@ -104,6 +113,13 @@ class FileSystemServiceTest {
     }
 
     @Test
+    void writeFileRejectsBlockedSensitivePathInsideAuthorizedDirectory() {
+        FileSystemService service = new FileSystemService(new PathSandbox(authorizedDirectory));
+
+        assertThrows(SecurityException.class, () -> service.writeFile(".gnupg/private.key", "nope"));
+    }
+
+    @Test
     void applyPatchUpdatesExistingFileAndCreatesBackup() throws Exception {
         Files.writeString(authorizedDirectory.resolve("note.txt"), "alpha\nbeta\ngamma\n", StandardCharsets.UTF_8);
         FileSystemService service = new FileSystemService(new PathSandbox(authorizedDirectory));
@@ -125,5 +141,20 @@ class FileSystemServiceTest {
         assertTrue(result.backupPath() != null && Files.exists(Path.of(result.backupPath())));
         assertEquals(2, result.diffSummary().addedLines());
         assertEquals(1, result.diffSummary().removedLines());
+    }
+
+    @Test
+    void applyPatchRejectsBlockedSensitivePathInsideAuthorizedDirectory() throws Exception {
+        Files.createDirectories(authorizedDirectory.resolve(".ssh"));
+        Files.writeString(authorizedDirectory.resolve(".ssh/config"), "Host *\n", StandardCharsets.UTF_8);
+        FileSystemService service = new FileSystemService(new PathSandbox(authorizedDirectory));
+
+        assertThrows(SecurityException.class, () -> service.applyPatch(".ssh/config", """
+                --- a/.ssh/config
+                +++ b/.ssh/config
+                @@ -1,1 +1,1 @@
+                -Host *
+                +Host example
+                """));
     }
 }
