@@ -11,4 +11,9 @@ public class HealthController {
     public Map<String, String> health() {
         return Map.of("status", "UP");
     }
+
+    @GetMapping("/api/health")
+    public Map<String, String> apiHealth() {
+        return Map.of("status", "UP");
+    }
 }

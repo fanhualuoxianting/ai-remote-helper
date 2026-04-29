@@ -1,0 +1,27 @@
+# Build output
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# Maven wrapper (if not needed)
+!.mvn/wrapper/maven-wrapper.jar
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tools (Maven binary, etc.)
+.tools/
+
+# Logs
+*.log
+
+# Temporary
+.tmp/

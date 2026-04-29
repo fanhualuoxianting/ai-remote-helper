@@ -77,3 +77,175 @@ mvn clean package
 ### 下一阶段计划
 
 下一阶段应严格按 `tasks/phase-02-agent-server-connection.md` 执行，开始实现 Agent 与 relay-server 的基础连接能力。不要在 Phase 01 中提前实现任务执行、文件操作或 MCP 工具能力。
+
+## Phase 02：实现 Agent 与 Relay Server 的基础连接
+
+### 本次任务目标
+
+根据 `tasks/phase-02-agent-server-connection.md`，只实现 Agent 与 Relay Server 的基础 WebSocket/STOMP 连接闭环，包括连接、断开、心跳、在线状态、连接码显示和在线设备查询。不实现远程命令执行、文件读写、MCP 工具和任务转发。
+
+### 实际完成内容
+
+- 在 `common-protocol` 中补充基础连接消息：
+  - `AgentHelloMessage`
+  - `AgentOnlineMessage`
+  - `HeartbeatMessage`
+  - `ErrorMessage`
+- 在 `relay-server` 中新增 WebSocket/STOMP 配置：
+  - Agent 连接端点：`/ws/agent`
+  - Controller/MCP 预留端点：`/ws/controller`
+  - 应用消息前缀：`/app`
+  - 简单 broker：`/topic`
+  - STOMP 心跳配置
+- 在 `relay-server` 中新增内存设备注册表：
+  - Agent hello 后注册 `deviceId`
+  - 生成 `sessionId`
+  - 生成 6 位 `connectionCode`
+  - 记录在线状态和最近心跳时间
+  - WebSocket 断开后按 STOMP session 标记离线
+- 在 `relay-server` 中新增 REST API：
+  - `GET /api/health`
+  - `GET /api/devices/online`
+- 在 `agent-client` 中增强 JavaFX UI：
+  - 服务器地址输入框
+  - 手动选择授权目录按钮
+  - 连接/断开按钮
+  - 当前连接状态
+  - 当前 `deviceId`
+  - 当前连接码
+  - 授权目录显示
+  - 实时日志区域
+- 在 `agent-client` 中新增 STOMP 客户端连接逻辑：
+  - 点击连接后连接 relay-server
+  - 连接成功后发送 Agent hello
+  - 收到服务端在线确认后显示连接码
+  - 定时发送 heartbeat
+  - 断开后停止 heartbeat，并允许手动重连
+- 保持 Phase 01 安全边界：
+  - 未实现命令执行
+  - 未实现文件读写
+  - 未实现任务转发
+  - 未实现 MCP 工具
+  - Agent UI 必须可见
+  - 连接前要求用户手动选择授权目录
+
+### 修改/新增文件
+
+- `common-protocol/src/main/java/com/airh/protocol/enums/MessageType.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/AgentHelloMessage.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/AgentOnlineMessage.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/HeartbeatMessage.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/ErrorMessage.java`
+- `relay-server/src/main/java/com/airh/relay/config/SecurityConfig.java`
+- `relay-server/src/main/java/com/airh/relay/config/WebSocketConfig.java`
+- `relay-server/src/main/java/com/airh/relay/controller/HealthController.java`
+- `relay-server/src/main/java/com/airh/relay/controller/DeviceController.java`
+- `relay-server/src/main/java/com/airh/relay/device/DeviceConnection.java`
+- `relay-server/src/main/java/com/airh/relay/device/DeviceRegistry.java`
+- `relay-server/src/main/java/com/airh/relay/websocket/AgentConnectionController.java`
+- `relay-server/src/main/java/com/airh/relay/websocket/AgentWebSocketEventListener.java`
+- `agent-client/pom.xml`
+- `agent-client/src/main/java/com/airh/agent/connection/AgentConnectionClient.java`
+- `agent-client/src/main/java/com/airh/agent/connection/AgentConnectionListener.java`
+- `agent-client/src/main/java/com/airh/agent/ui/AgentClientApplication.java`
+- `DEVELOPMENT_REPORT.md`
+- `复现记录.md`
+
+### 如何启动 relay-server
+
+如果系统 PATH 中已有 Maven：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+mvn -f relay-server\pom.xml spring-boot:run
+```
+
+如果本机没有 `mvn`，可使用本次验证下载的项目局部 Maven：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -f relay-server\pom.xml spring-boot:run
+```
+
+如果 8080 端口被占用，可临时切换端口：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -f relay-server\pom.xml spring-boot:run -Dspring-boot.run.arguments=--server.port=18081
+```
+
+### 如何启动 agent-client
+
+未在本轮自动启动 JavaFX GUI，以避免在后台打开不可控窗口；已通过 Maven 编译检查。可手动执行：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -f agent-client\pom.xml javafx:run
+```
+
+启动后：
+
+1. 服务器地址填写 `http://localhost:8080`，如果 relay-server 使用临时端口则填写 `http://localhost:18081`。
+2. 点击“选择授权目录”，手动选择工作目录。
+3. 点击“连接”。
+4. UI 显示“已连接”和 6 位连接码。
+5. 点击“断开”后，UI 回到未连接状态。
+
+### 如何验证连接
+
+健康检查：
+
+```powershell
+Invoke-RestMethod http://localhost:8080/api/health
+```
+
+查询在线设备：
+
+```powershell
+Invoke-RestMethod http://localhost:8080/api/devices/online
+```
+
+本轮实际在 18081 端口完成最小启动验证：
+
+```powershell
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -f relay-server\pom.xml spring-boot:run -Dspring-boot.run.arguments=--server.port=18081
+Invoke-RestMethod http://localhost:18081/api/health
+Invoke-RestMethod http://localhost:18081/api/devices/online
+```
+
+实际结果：
+
+```text
+GET /api/health -> {"status":"UP"}
+GET /api/devices/online -> []
+```
+
+### 构建检查
+
+本机 PowerShell 中 `mvn` 不在 PATH，因此先下载项目局部 Maven 3.9.9 到 `.tools`：
+
+```powershell
+New-Item -ItemType Directory -Force -Path .tools | Out-Null
+$zip = Join-Path (Resolve-Path .tools) 'apache-maven-3.9.9-bin.zip'
+Invoke-WebRequest -Uri 'https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.zip' -OutFile $zip
+Expand-Archive -Path $zip -DestinationPath .tools -Force
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -version
+```
+
+已执行 Maven 构建检查：
+
+```powershell
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package
+```
+
+结果：`BUILD SUCCESS`。所有模块编译通过；当前项目没有测试源码，Maven 输出 `No tests to run`。
+
+### 当前问题
+
+- 系统 PATH 中仍未找到 `mvn`，本轮使用 `.tools\apache-maven-3.9.9\bin\mvn.cmd` 完成构建。
+- 本机 8080 端口已被 PID 8116 占用，因此最小启动验证使用临时端口 18081。
+- 本轮未自动启动 JavaFX 图形界面进行人工点击验证；连接逻辑已通过编译，启动和操作步骤已补充。
+
+### 下一步计划
+
+下一阶段应严格按 `tasks/phase-03-task-routing.md` 执行，开始任务转发前仍要保持授权目录、可见 UI、断开后不接收任务等安全边界。本阶段不要补做远程命令执行、文件读写或 MCP 工具能力。
