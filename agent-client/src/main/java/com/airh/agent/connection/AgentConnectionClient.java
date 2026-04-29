@@ -1,5 +1,6 @@
 package com.airh.agent.connection;
 
+import com.airh.agent.executor.CommandExecutionService;
 import com.airh.agent.executor.TaskExecutor;
 import com.airh.agent.filesystem.FileSystemService;
 import com.airh.agent.safety.PathSandbox;
@@ -56,7 +57,8 @@ public class AgentConnectionClient {
 
         String websocketUrl = toWebSocketUrl(serverUrl);
         listener.onConnecting(websocketUrl);
-        taskExecutor = new TaskExecutor(new FileSystemService(new PathSandbox(Path.of(authorizedDirectory))),
+        PathSandbox pathSandbox = new PathSandbox(Path.of(authorizedDirectory));
+        taskExecutor = new TaskExecutor(new FileSystemService(pathSandbox), new CommandExecutionService(pathSandbox),
                 (taskId, message) -> sendTaskLog(taskId, "INFO", message));
 
         stompClient = new WebSocketStompClient(new StandardWebSocketClient());

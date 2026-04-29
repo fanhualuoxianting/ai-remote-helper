@@ -655,3 +655,105 @@ cd E:\openclaw-project\ai-remote-helper
 - 后续 Phase 07 如实现命令执行，必须继续限制 cwd 在授权目录内，并接入危险命令检测和超时控制。
 - 如果后续需要更完整补丁能力，可以引入成熟 diff/patch 库替代当前基础解析器。
 - Relay 和 MCP 侧创建 `WRITE_FILE` 任务时建议使用 `payload.data.path` 和 `payload.data.content`；创建 `APPLY_PATCH` 任务时建议使用 `payload.data.path` 和 `payload.data.patch`。
+
+## Phase 07：run_command 命令执行
+
+### 本次任务目标
+
+根据 `tasks/phase-07-command-execution.md`，在 Agent 端实现 `RUN_COMMAND` 任务：使用 `ProcessBuilder` 通过系统 shell 执行命令，分别捕获 stdout/stderr，支持授权目录内工作目录、默认 30 秒超时、最大 300 秒超时、进程强杀和实时输出日志。
+
+### 实际完成内容
+
+- 新增 `CommandExecutionService`：
+  - 使用 `ProcessBuilder` 执行命令。
+  - Windows 使用 `cmd.exe /c`，非 Windows 使用 `sh -c`。
+  - 默认工作目录为 Agent 授权目录。
+  - 支持相对工作目录，也允许授权目录内的绝对工作目录；越界目录会拒绝执行。
+  - 默认超时 30 秒，最大超时 300 秒。
+  - stdout 和 stderr 分开读取、分开累计。
+  - 支持实时输出 callback。
+  - 超时后调用 `kill()` 强杀进程及其子进程。
+  - 关闭 stdin，不支持交互式命令。
+- 新增 `CommandResult` record，字段为 `exitCode`、`stdout`、`stderr`、`durationMs`、`timedOut`、`killed`。
+- 更新 `TaskExecutor`：
+  - 增加 `RUN_COMMAND` 分支。
+  - 从 payload 或 `payload.data` 中读取 `command`、`workingDir/cwd`、`timeoutSeconds/timeout`。
+  - 执行期间把 stdout/stderr chunk 作为任务日志上报，前缀为 `[stdout]` 和 `[stderr]`。
+  - 将 `CommandResult` 序列化为 JSON 作为任务 output 返回。
+  - 非 0 exit code、超时或被 kill 时返回 `FAILED`；正常退出返回 `SUCCESS`。
+  - 接入 `CommandRiskDetector`，命中 `BLOCKED` 风险时拒绝执行。
+- 更新 `AgentConnectionClient`：
+  - 连接时基于同一个 `PathSandbox` 初始化 `FileSystemService` 和 `CommandExecutionService`。
+- 新增 `CommandExecutionServiceTest`：
+  - 验证 echo 命令成功并流式返回 stdout。
+  - 验证超时行为和 kill 标记。
+  - 验证命令工作目录。
+  - 验证非 0 exit code 捕获。
+
+### 修改/新增文件
+
+- `agent-client/src/main/java/com/airh/agent/executor/CommandExecutionService.java`
+- `agent-client/src/main/java/com/airh/agent/executor/CommandResult.java`
+- `agent-client/src/main/java/com/airh/agent/executor/TaskExecutor.java`
+- `agent-client/src/main/java/com/airh/agent/connection/AgentConnectionClient.java`
+- `agent-client/src/test/java/com/airh/agent/executor/CommandExecutionServiceTest.java`
+- `DEVELOPMENT_REPORT.md`
+- `复现记录.md`
+
+### 使用过的关键命令
+
+查看 Java 版本：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+java -version
+```
+
+结果：OpenJDK 21.0.9 Temurin。
+
+查看项目局部 Maven 版本：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -version
+```
+
+结果：Apache Maven 3.9.9，Java 21.0.9，Windows 11。
+
+按要求执行全量构建和测试：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package
+```
+
+结果：`BUILD SUCCESS`。
+
+### 测试结果
+
+- 已执行全量 Maven Reactor 构建：`BUILD SUCCESS`。
+- `CommandExecutionServiceTest`：`Tests run: 4, Failures: 0, Errors: 0, Skipped: 0`。
+- `FileSystemServiceTest`：`Tests run: 8, Failures: 0, Errors: 0, Skipped: 0`。
+- `PathSandboxTest`：`Tests run: 2, Failures: 0, Errors: 0, Skipped: 0`。
+- 全部测试：`Tests run: 14, Failures: 0, Errors: 0, Skipped: 0`。
+- 本轮未自动启动 JavaFX GUI 做端到端人工验证；启动和手工验证命令见 `复现记录.md`。
+
+### 环境信息
+
+- 操作系统：Windows 11
+- Java：OpenJDK 21.0.9 Temurin
+- Maven：项目局部 Apache Maven 3.9.9
+- Spring Boot：3.3.5
+- JavaFX：21.0.5
+
+### 当前问题
+
+- `CommandExecutionService.kill()` 面向当前运行进程；当前任务执行器允许并发任务时，不建议同时下发多个长时间命令任务。
+- 命令输出按当前 JVM 默认字符集读取；跨平台中文命令输出可能受系统 shell 编码影响。
+- 本阶段已通过 STOMP `/app/agent/task-log` 上报命令输出日志，但未实现 Relay 端分页存储命令日志和 JavaFX 独立追加输出视图增强。
+
+### 下一步建议
+
+- 后续 Relay Server 端应补齐任务日志持久化和分页查询。
+- 后续 Agent UI 可增加专门的命令输出追加区域，区分 stdout/stderr 样式。
+- MCP Bridge 创建 `RUN_COMMAND` 任务时建议使用 `payload.data.command`、`payload.data.cwd` 和 `payload.data.timeoutSeconds`。
