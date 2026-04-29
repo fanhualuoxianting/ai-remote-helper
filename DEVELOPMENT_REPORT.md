@@ -912,6 +912,8 @@ git status --short
 - `relay-server/src/main/java/com/airh/relay/task/TaskRecord.java`
 - `relay-server/src/main/java/com/airh/relay/task/TaskService.java`
 - `relay-server/src/main/resources/db/migration/V1__init.sql`
+- `relay-server/src/test/java/com/airh/relay/repository/TaskRecordRepositoryTest.java`
+- `relay-server/src/test/java/com/airh/relay/repository/AuditEventRepositoryTest.java`
 - `DEVELOPMENT_REPORT.md`
 - `复现记录.md`
 
@@ -951,9 +953,9 @@ git status --short
 - 已执行 `.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package`。
 - 结果：`BUILD SUCCESS`。
 - `common-safety` 测试：`Tests run: 9, Failures: 0, Errors: 0, Skipped: 0`。
-- `relay-server`：编译通过，当前没有测试源码，Maven 输出 `No tests to run`。
+- `relay-server` 测试：`Tests run: 2, Failures: 0, Errors: 0, Skipped: 0`。
 - `agent-client` 测试：`Tests run: 17, Failures: 0, Errors: 0, Skipped: 0`。
-- 全量实际测试合计：`Tests run: 26, Failures: 0, Errors: 0, Skipped: 0`。
+- 全量实际测试合计：`Tests run: 28, Failures: 0, Errors: 0, Skipped: 0`。
 
 ### 环境信息
 
@@ -971,6 +973,7 @@ git status --short
 - `V1__init.sql` 已创建为建表脚本；当前项目未引入 Flyway，运行时实际建表依赖 `spring.jpa.hibernate.ddl-auto=update`。
 - 任务日志 `TaskLog` 仍保持内存存储，本阶段只持久化任务记录和审计事件。
 - `SessionStateCache` 将 Redis 作为缓存层处理；Redis 不可用时不会阻断现有内存在线设备注册逻辑。
+- 第一次补充 Repository 测试后执行全量构建时，relay-server 测试已通过，但 Windows 文件锁导致 Maven clean 删除 `agent-client\target\classes\com\airh` 失败；随后重跑同一条 `clean package` 成功。
 
 ### 下一步建议
 

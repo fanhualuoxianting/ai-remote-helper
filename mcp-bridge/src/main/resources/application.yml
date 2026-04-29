@@ -1,0 +1,15 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: mcp-bridge
+
+mcp:
+  bridge:
+    relay-url: ws://localhost:8080/ws
+    timeout-seconds: 60
+
+logging:
+  level:
+    com.airh.mcp: DEBUG
