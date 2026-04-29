@@ -7,16 +7,15 @@ import com.airh.protocol.enums.TaskType;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 public record RemoteTask(
         String taskId,
         String sessionId,
-        TaskType type,
+        TaskType taskType,
         TaskStatus status,
         RiskLevel riskLevel,
         List<PermissionType> requiredPermissions,
-        Map<String, String> parameters,
+        TaskPayload payload,
         Instant createdAt,
         Instant expiresAt
 ) {

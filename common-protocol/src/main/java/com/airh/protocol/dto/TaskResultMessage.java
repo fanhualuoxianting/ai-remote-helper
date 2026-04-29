@@ -4,8 +4,9 @@ import com.airh.protocol.enums.TaskStatus;
 
 import java.time.Instant;
 
-public record TaskResult(
+public record TaskResultMessage(
         String taskId,
+        String sessionId,
         TaskStatus status,
         String summary,
         String output,

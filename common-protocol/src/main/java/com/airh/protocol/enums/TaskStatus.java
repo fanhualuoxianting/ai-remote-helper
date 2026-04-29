@@ -3,9 +3,9 @@ package com.airh.protocol.enums;
 public enum TaskStatus {
     PENDING,
     RUNNING,
-    SUCCEEDED,
+    SUCCESS,
     FAILED,
-    REJECTED,
-    TIMED_OUT,
-    CANCELLED
+    TIMEOUT,
+    CANCELLED,
+    BLOCKED
 }

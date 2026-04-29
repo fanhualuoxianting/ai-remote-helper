@@ -41,6 +41,7 @@ public class AgentClientApplication extends Application {
         Label deviceId = new Label("当前 deviceId：" + deviceIdValue);
         Label connectionCode = new Label("当前连接码：未生成");
         Label authorizedDirectory = new Label("授权目录：未选择");
+        Label currentTask = new Label("当前任务：无");
 
         TextArea logs = new TextArea();
         logs.setPromptText("实时日志");
@@ -91,7 +92,7 @@ public class AgentClientApplication extends Application {
 
         HBox serverRow = new HBox(8, new Label("服务器地址："), serverUrl);
         HBox actions = new HBox(8, chooseDirectoryButton, connectButton, disconnectButton);
-        VBox root = new VBox(12, title, serverRow, status, deviceId, connectionCode, authorizedDirectory, logs, actions);
+        VBox root = new VBox(12, title, serverRow, status, deviceId, connectionCode, authorizedDirectory, currentTask, logs, actions);
         root.setPadding(new Insets(16));
 
         stage.setTitle("AI Remote Helper Agent");
@@ -99,7 +100,7 @@ public class AgentClientApplication extends Application {
         stage.setOnCloseRequest(event -> connectionClient.shutdown());
         stage.show();
 
-        UiConnectionListener.bind(status, connectionCode, logs, connectButton, disconnectButton);
+        UiConnectionListener.bind(status, connectionCode, currentTask, logs, connectButton, disconnectButton);
         appendLog(logs, "Agent UI 已启动，等待用户选择授权目录并连接");
     }
 
@@ -122,13 +123,15 @@ public class AgentClientApplication extends Application {
     private static final class UiConnectionListener implements AgentConnectionListener {
         private static Label status;
         private static Label connectionCode;
+        private static Label currentTask;
         private static TextArea logs;
         private static Button connectButton;
         private static Button disconnectButton;
 
-        static void bind(Label statusLabel, Label connectionCodeLabel, TextArea logsArea, Button connect, Button disconnect) {
+        static void bind(Label statusLabel, Label connectionCodeLabel, Label currentTaskLabel, TextArea logsArea, Button connect, Button disconnect) {
             status = statusLabel;
             connectionCode = connectionCodeLabel;
+            currentTask = currentTaskLabel;
             logs = logsArea;
             connectButton = connect;
             disconnectButton = disconnect;
@@ -153,9 +156,28 @@ public class AgentClientApplication extends Application {
             Platform.runLater(() -> {
                 status.setText("当前状态：未连接");
                 connectionCode.setText("当前连接码：未生成");
+                currentTask.setText("当前任务：无");
                 connectButton.setDisable(false);
                 disconnectButton.setDisable(true);
                 appendLog(logs, reason);
+            });
+        }
+
+        @Override
+        public void onTaskStarted(String taskId, String taskType, String payloadSummary) {
+            Platform.runLater(() -> {
+                currentTask.setText("当前任务：" + taskId + " / " + taskType);
+                appendLog(logs, "收到任务：" + taskId + "，类型：" + taskType);
+                appendLog(logs, "任务 payload 摘要：" + payloadSummary);
+                appendLog(logs, "任务开始：本阶段只返回模拟结果");
+            });
+        }
+
+        @Override
+        public void onTaskFinished(String taskId, String taskStatus, String summary) {
+            Platform.runLater(() -> {
+                currentTask.setText("当前任务：无");
+                appendLog(logs, "任务结束：" + taskId + "，状态：" + taskStatus + "，" + summary);
             });
         }
 

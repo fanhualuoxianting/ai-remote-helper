@@ -4,8 +4,11 @@ import com.airh.protocol.dto.AgentHelloMessage;
 import com.airh.protocol.dto.AgentOnlineMessage;
 import com.airh.protocol.dto.ErrorMessage;
 import com.airh.protocol.dto.HeartbeatMessage;
+import com.airh.protocol.dto.TaskLogMessage;
+import com.airh.protocol.dto.TaskResultMessage;
 import com.airh.relay.device.DeviceConnection;
 import com.airh.relay.device.DeviceRegistry;
+import com.airh.relay.task.TaskService;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -18,10 +21,12 @@ import java.util.UUID;
 public class AgentConnectionController {
     private final DeviceRegistry deviceRegistry;
     private final SimpMessagingTemplate messagingTemplate;
+    private final TaskService taskService;
 
-    public AgentConnectionController(DeviceRegistry deviceRegistry, SimpMessagingTemplate messagingTemplate) {
+    public AgentConnectionController(DeviceRegistry deviceRegistry, SimpMessagingTemplate messagingTemplate, TaskService taskService) {
         this.deviceRegistry = deviceRegistry;
         this.messagingTemplate = messagingTemplate;
+        this.taskService = taskService;
     }
 
     @MessageMapping("/agent/hello")
@@ -52,6 +57,16 @@ public class AgentConnectionController {
             return;
         }
         deviceRegistry.heartbeat(message.deviceId(), stompSessionId);
+    }
+
+    @MessageMapping("/agent/task-log")
+    public void taskLog(TaskLogMessage message) {
+        taskService.receiveTaskLog(message);
+    }
+
+    @MessageMapping("/agent/task-result")
+    public void taskResult(TaskResultMessage message) {
+        taskService.receiveTaskResult(message);
     }
 
     private void publishError(String deviceId, String code, String message) {

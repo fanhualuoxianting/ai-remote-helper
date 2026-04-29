@@ -249,3 +249,131 @@ Expand-Archive -Path $zip -DestinationPath .tools -Force
 ### 下一步计划
 
 下一阶段应严格按 `tasks/phase-03-task-routing.md` 执行，开始任务转发前仍要保持授权目录、可见 UI、断开后不接收任务等安全边界。本阶段不要补做远程命令执行、文件读写或 MCP 工具能力。
+
+## Phase 03：实现任务转发协议，不执行真实命令
+
+### 本次任务目标
+
+根据 `tasks/phase-03-task-routing.md`，只完成任务转发协议闭环：Controller/MCP 侧通过 relay-server 创建任务，relay-server 将任务下发给指定在线 Agent，Agent UI 显示任务并返回模拟结果。严格不执行真实命令，不读取真实文件，不写入真实文件，不做后续阶段。
+
+### 实际完成内容
+
+- `common-protocol` 补充 Phase 03 DTO：
+  - `CreateTaskRequest`
+  - `CreateTaskResponse`
+  - `TaskPayload`
+  - `TaskLogMessage`
+  - `TaskResultMessage`
+- `common-protocol` 调整任务协议：
+  - `TaskType` 新增 `LIST_DIR`、`APPLY_PATCH`
+  - `TaskStatus` 对齐 `PENDING`、`RUNNING`、`SUCCESS`、`FAILED`、`TIMEOUT`、`CANCELLED`、`BLOCKED`
+  - `RemoteTask` 使用 `taskType` 和 `TaskPayload`
+  - `TaskResult` 增加 `stderr`
+- `relay-server` 新增内存任务服务和 REST API：
+  - `POST /api/sessions/{sessionId}/tasks`
+  - `GET /api/tasks/{taskId}`
+  - `GET /api/tasks/{taskId}/logs`
+- `relay-server` 根据 `sessionId` 查找在线 Agent，并通过 `/topic/agent/{deviceId}/events` 下发 `RemoteTask`。
+- `relay-server` 新增 STOMP 消息处理：
+  - `/app/agent/task-log`
+  - `/app/agent/task-result`
+- `relay-server` 暂时用内存保存任务状态和任务日志，不接数据库。
+- `agent-client` 接收任务后在 UI 日志区显示 `taskId`、`taskType`、payload 摘要、任务开始和任务结束。
+- `agent-client` 对所有任务类型返回模拟结果：
+  - `LIST_DIR` 返回模拟目录列表
+  - `READ_FILE` 返回模拟文件内容
+  - `RUN_COMMAND` 返回模拟 stdout/stderr
+  - `WRITE_FILE` 返回模拟成功
+  - `APPLY_PATCH` 返回模拟成功
+- 保持安全边界：本阶段没有加入任何真实命令执行、真实文件读取、真实文件写入或补丁应用逻辑。
+
+### API 使用说明
+
+创建任务：
+
+```powershell
+$body = @{
+  taskType = "LIST_DIR"
+  payload = @{
+    data = @{
+      path = "."
+    }
+  }
+  timeoutSeconds = 30
+} | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod -Method Post -Uri "http://localhost:8080/api/sessions/<sessionId>/tasks" -ContentType "application/json" -Body $body
+```
+
+查询任务结果：
+
+```powershell
+Invoke-RestMethod "http://localhost:8080/api/tasks/<taskId>"
+```
+
+查询任务日志：
+
+```powershell
+Invoke-RestMethod "http://localhost:8080/api/tasks/<taskId>/logs"
+```
+
+### 修改/新增文件
+
+- `common-protocol/src/main/java/com/airh/protocol/enums/TaskType.java`
+- `common-protocol/src/main/java/com/airh/protocol/enums/TaskStatus.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/RemoteTask.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/TaskResult.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/CreateTaskRequest.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/CreateTaskResponse.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/TaskPayload.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/TaskLogMessage.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/TaskResultMessage.java`
+- `relay-server/src/main/java/com/airh/relay/config/SecurityConfig.java`
+- `relay-server/src/main/java/com/airh/relay/controller/TaskController.java`
+- `relay-server/src/main/java/com/airh/relay/device/DeviceRegistry.java`
+- `relay-server/src/main/java/com/airh/relay/task/TaskRecord.java`
+- `relay-server/src/main/java/com/airh/relay/task/TaskService.java`
+- `relay-server/src/main/java/com/airh/relay/websocket/AgentConnectionController.java`
+- `agent-client/src/main/java/com/airh/agent/connection/AgentConnectionClient.java`
+- `agent-client/src/main/java/com/airh/agent/connection/AgentConnectionListener.java`
+- `agent-client/src/main/java/com/airh/agent/ui/AgentClientApplication.java`
+- `DEVELOPMENT_REPORT.md`
+- `复现记录.md`
+
+### 构建检查
+
+按本阶段额外要求，使用项目局部 Maven `.tools/apache-maven-3.9.9/bin/mvn.cmd` 构建，并先安装父 POM 和 common 模块。
+
+已执行：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd install -N
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -pl common-protocol,common-safety install
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package
+```
+
+结果：`BUILD SUCCESS`。所有模块编译通过；当前项目没有测试源码，Maven 输出 `No tests to run`。
+
+### 如何测试
+
+1. 启动 relay-server。
+2. 启动 agent-client。
+3. 在 Agent UI 中手动选择授权目录并连接 relay-server。
+4. 调用 `GET /api/devices/online` 获取在线 Agent 的 `sessionId`。
+5. 调用 `POST /api/sessions/{sessionId}/tasks` 创建任务。
+6. 观察 Agent UI 日志区，应显示收到任务、payload 摘要、任务开始、模拟处理、任务结束。
+7. 调用 `GET /api/tasks/{taskId}` 查询任务状态，应看到模拟结果。
+8. 调用 `GET /api/tasks/{taskId}/logs` 查询任务日志，应看到 relay-server 和 Agent 上报的任务日志。
+
+本轮未自动启动 JavaFX GUI 做人工点击验证；已完成 Maven 编译构建检查。
+
+### 当前问题
+
+- 任务、日志和在线设备仍使用内存存储，服务重启后会丢失。
+- 本阶段没有实现任务超时扫描器，只保留 `timeoutSeconds` 和 `expiresAt` 协议字段，后续阶段可补充调度处理。
+- 本阶段没有真实执行任何命令、文件读取、文件写入或补丁应用，这是 Phase 03 的预期安全边界。
+
+### 下一阶段计划
+
+下一阶段如果任务文件要求进入真实执行能力，必须继续保持 Agent 可见、用户授权目录限制、危险命令拦截、任务超时、修改前备份和审计日志。不得绕过授权目录，不得隐藏运行，不得读取授权目录外文件。

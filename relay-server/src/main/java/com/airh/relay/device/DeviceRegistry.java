@@ -70,6 +70,13 @@ public class DeviceRegistry {
                 .toList();
     }
 
+    public Optional<DeviceConnection> findOnlineBySessionId(String sessionId) {
+        return devicesById.values().stream()
+                .filter(DeviceConnection::online)
+                .filter(connection -> connection.sessionId().equals(sessionId))
+                .findFirst();
+    }
+
     private String generateConnectionCode() {
         int number = RANDOM.nextInt(1_000_000);
         return "%06d".formatted(number);

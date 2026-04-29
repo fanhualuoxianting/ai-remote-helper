@@ -7,5 +7,9 @@ public interface AgentConnectionListener {
 
     void onDisconnected(String reason);
 
+    void onTaskStarted(String taskId, String taskType, String payloadSummary);
+
+    void onTaskFinished(String taskId, String status, String summary);
+
     void onLog(String message);
 }
