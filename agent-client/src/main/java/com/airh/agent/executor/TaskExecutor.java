@@ -68,11 +68,24 @@ public class TaskExecutor implements AutoCloseable {
     }
 
     private TaskResultMessage executeListDirectory(String taskId, String sessionId, String relativePath) throws JsonProcessingException, java.io.IOException {
+        taskLogSink.accept(taskId, "AI 查看目录：" + relativePath);
         var entries = fileSystemService.listDirectory(relativePath);
         taskLogSink.accept(taskId, "目录读取完成，共 " + entries.size() + " 项");
+
+        // 转换为协议 DTO
+        var items = entries.stream()
+                .map(entry -> new com.airh.protocol.dto.FileItem(
+                        entry.name(), entry.name(), entry.directory() ? "directory" : "file",
+                        entry.size(), entry.modifiedTime().toString(), entry.name().startsWith(".")))
+                .toList();
+        var result = new com.airh.protocol.dto.ListDirResult();
+        result.setPath(relativePath);
+        result.setItems(items);
+        result.setTotalCount(items.size());
+
         return new TaskResultMessage(taskId, sessionId, TaskStatus.SUCCESS,
                 "目录列表读取成功，共 " + entries.size() + " 项",
-                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(entries),
+                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(result),
                 "", null, Instant.now());
     }
 
@@ -114,31 +127,75 @@ public class TaskExecutor implements AutoCloseable {
     }
 
     private TaskResultMessage executeReadFile(String taskId, String sessionId, String relativePath) throws JsonProcessingException, java.io.IOException {
+        taskLogSink.accept(taskId, "AI 读取文件：" + relativePath);
         var result = fileSystemService.readFile(relativePath);
         String summary = result.contentReturned()
                 ? "文件读取成功：" + result.name() + "，" + result.size() + " bytes"
                 : "文件信息读取成功：" + result.name() + "，未返回正文";
+        if (result.binary()) {
+            taskLogSink.accept(taskId, "二进制文件被阻止：" + relativePath);
+        }
+        if (!result.contentReturned() && result.size() > FileSystemService.MAX_TEXT_FILE_BYTES) {
+            taskLogSink.accept(taskId, "文件过大被截断：" + relativePath);
+        }
         taskLogSink.accept(taskId, summary);
+
+        // 转换为协议 DTO
+        var dto = new com.airh.protocol.dto.ReadFileResult();
+        dto.setPath(relativePath);
+        dto.setContent(result.content());
+        dto.setSize(result.size());
+        dto.setEncoding("UTF-8");
+        dto.setTruncated(!result.contentReturned());
+        dto.setBinary(result.binary());
+        dto.setRiskLevel(result.binary() ? "HIGH" : "LOW");
+
         return new TaskResultMessage(taskId, sessionId, TaskStatus.SUCCESS, summary,
-                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(result),
+                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(dto),
                 "", null, Instant.now());
     }
 
     private TaskResultMessage executeWriteFile(String taskId, String sessionId, String relativePath, String content) throws JsonProcessingException, java.io.IOException {
+        taskLogSink.accept(taskId, "AI 准备修改文件：" + relativePath);
         var result = fileSystemService.writeFile(relativePath, content);
+        if (result.backupPath() != null) {
+            taskLogSink.accept(taskId, "已创建备份：" + result.backupPath());
+        }
+        taskLogSink.accept(taskId, "AI 写入文件：" + relativePath);
         String summary = result.message() + "，" + result.diffSummary().summary();
         taskLogSink.accept(taskId, summary);
+
+        // 转换为协议 DTO
+        var dto = new com.airh.protocol.dto.WriteFileResult();
+        dto.setPath(relativePath);
+        dto.setSize(result.size());
+        dto.setBackupPath(result.backupPath());
+        dto.setMessage(result.message());
+
         return new TaskResultMessage(taskId, sessionId, TaskStatus.SUCCESS, summary,
-                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(result),
+                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(dto),
                 "", null, Instant.now());
     }
 
     private TaskResultMessage executeApplyPatch(String taskId, String sessionId, String relativePath, String patch) throws JsonProcessingException, java.io.IOException {
+        taskLogSink.accept(taskId, "AI 应用补丁：" + relativePath);
         var result = fileSystemService.applyPatch(relativePath, patch);
+        if (result.backupPath() != null) {
+            taskLogSink.accept(taskId, "已创建备份：" + result.backupPath());
+        }
+        taskLogSink.accept(taskId, "AI 应用补丁完成：" + relativePath);
         String summary = result.message() + "，" + result.diffSummary().summary();
         taskLogSink.accept(taskId, summary);
+
+        // 转换为协议 DTO
+        var dto = new com.airh.protocol.dto.ApplyPatchResult();
+        dto.setPath(relativePath);
+        dto.setSuccess(true);
+        dto.setBackupPath(result.backupPath());
+        dto.setMessage(result.message());
+
         return new TaskResultMessage(taskId, sessionId, TaskStatus.SUCCESS, summary,
-                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(result),
+                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(dto),
                 "", null, Instant.now());
     }
 
