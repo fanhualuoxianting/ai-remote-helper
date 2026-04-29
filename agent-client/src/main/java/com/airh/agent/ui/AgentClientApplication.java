@@ -2,6 +2,7 @@ package com.airh.agent.ui;
 
 import com.airh.agent.connection.AgentConnectionClient;
 import com.airh.agent.connection.AgentConnectionListener;
+import com.airh.agent.safety.PathSandbox;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -12,10 +13,8 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 
-import java.io.File;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Path;
@@ -24,6 +23,7 @@ import java.util.UUID;
 public class AgentClientApplication extends Application {
     private AgentConnectionClient connectionClient;
     private Path authorizedDirectoryPath;
+    private PathSandbox pathSandbox;
 
     @Override
     public void start(Stage stage) {
@@ -54,18 +54,18 @@ public class AgentClientApplication extends Application {
         disconnectButton.setDisable(true);
 
         chooseDirectoryButton.setOnAction(event -> {
-            DirectoryChooser chooser = new DirectoryChooser();
-            chooser.setTitle("选择授权工作目录");
-            File directory = chooser.showDialog(stage);
-            if (directory != null) {
-                authorizedDirectoryPath = directory.toPath().toAbsolutePath().normalize();
+            AuthorizedDirectoryChooser chooser = new AuthorizedDirectoryChooser();
+            chooser.choose(stage).ifPresent(selection -> {
+                authorizedDirectoryPath = selection.authorizedDirectory();
+                pathSandbox = selection.sandbox();
                 authorizedDirectory.setText("授权目录：" + authorizedDirectoryPath);
                 appendLog(logs, "已选择授权目录：" + authorizedDirectoryPath);
-            }
+                appendLog(logs, "路径沙箱已启用，后续路径将限制在授权目录内");
+            });
         });
 
         connectButton.setOnAction(event -> {
-            if (authorizedDirectoryPath == null) {
+            if (authorizedDirectoryPath == null || pathSandbox == null) {
                 appendLog(logs, "连接失败：请先手动选择授权目录");
                 return;
             }

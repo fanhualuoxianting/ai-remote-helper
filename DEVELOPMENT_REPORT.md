@@ -377,3 +377,94 @@ cd E:\openclaw-project\ai-remote-helper
 ### 下一阶段计划
 
 下一阶段如果任务文件要求进入真实执行能力，必须继续保持 Agent 可见、用户授权目录限制、危险命令拦截、任务超时、修改前备份和审计日志。不得绕过授权目录，不得隐藏运行，不得读取授权目录外文件。
+
+## Phase 04：授权目录选择与路径沙箱
+
+### 本次任务目标
+
+根据 `tasks/phase-04-path-sandbox.md`，只完成 Agent 端授权目录选择与路径沙箱、Relay Server 记录授权目录、任务下发携带授权目录。不实现 Phase 05 及之后的真实文件读取、写入或命令执行。
+
+### 实际完成内容
+
+- 新增 Agent 端 `AuthorizedDirectoryChooser`，封装 JavaFX `DirectoryChooser`，用户取消选择时不产生授权目录。
+- 新增 Agent 端 `PathSandbox`：
+  - `isUnderAuthorizedDir(Path target)` 校验目标路径是否在授权目录内。
+  - `resolveSecurely(String relativePath)` 只接受相对路径，并拒绝 `../` 路径穿越。
+  - `normalize(String path)` 提供路径标准化。
+- `AgentClientApplication` 改为通过 `AuthorizedDirectoryChooser` 选择授权目录，并在选择后初始化 `PathSandbox`。
+- Agent 未选择授权目录或路径沙箱未初始化时禁止连接。
+- `AgentConnectionClient` 继续在 hello 消息中发送 `authorizedDirectory`，并在收到任务时记录服务端下发的授权目录。
+- `AgentConnectionController` 对缺失 `authorizedDirectory` 的 hello 消息返回错误并拒绝注册。
+- `DeviceConnection` 已包含 `authorizedDirectory` 字段，本阶段保持该字段并确认在线设备 API 可暴露。
+- `DeviceRegistry` 新增 `getAuthorizedDirectory(deviceId)`。
+- `RemoteTask` 新增 `authorizedDirectory` 字段，`TaskService` 下发任务时从在线 Agent 连接记录中带上授权目录。
+- 新增 `PathSandboxTest`，实际验证：
+  - `src/main.java` 正常相对路径允许。
+  - `../../../etc/passwd` 路径穿越被拒绝。
+
+### 修改/新增文件
+
+- `agent-client/pom.xml`
+- `agent-client/src/main/java/com/airh/agent/safety/PathSandbox.java`
+- `agent-client/src/main/java/com/airh/agent/ui/AuthorizedDirectoryChooser.java`
+- `agent-client/src/main/java/com/airh/agent/ui/AgentClientApplication.java`
+- `agent-client/src/main/java/com/airh/agent/connection/AgentConnectionClient.java`
+- `agent-client/src/test/java/com/airh/agent/safety/PathSandboxTest.java`
+- `common-protocol/src/main/java/com/airh/protocol/dto/RemoteTask.java`
+- `relay-server/src/main/java/com/airh/relay/device/DeviceRegistry.java`
+- `relay-server/src/main/java/com/airh/relay/task/TaskService.java`
+- `relay-server/src/main/java/com/airh/relay/websocket/AgentConnectionController.java`
+- `DEVELOPMENT_REPORT.md`
+- `复现记录.md`
+
+### 使用过的关键命令
+
+按用户要求已执行：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+mvn clean package
+```
+
+结果：失败，当前 PowerShell PATH 中没有 `mvn`。
+
+随后使用项目局部 Maven 执行同等构建：
+
+```powershell
+cd E:\openclaw-project\ai-remote-helper
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package
+```
+
+结果：`BUILD SUCCESS`。
+
+查看版本信息：
+
+```powershell
+java -version
+.\.tools\apache-maven-3.9.9\bin\mvn.cmd -version
+```
+
+### 测试结果
+
+- `PathSandboxTest` 已随 `.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package` 实际运行。
+- 测试结果：`Tests run: 2, Failures: 0, Errors: 0, Skipped: 0`。
+- 全量 Maven Reactor 构建结果：`BUILD SUCCESS`。
+- 本轮未自动启动 JavaFX GUI 做人工点击验证；GUI 启动和接口验收命令见 `复现记录.md`。
+
+### 环境信息
+
+- 操作系统：Windows 11
+- Java：OpenJDK 21.0.9 Temurin
+- Maven：项目局部 Apache Maven 3.9.9
+- Spring Boot：3.3.5
+- JavaFX：21.0.5
+
+### 当前问题
+
+- 系统 PATH 中仍未找到 `mvn`，直接执行 `mvn clean package` 失败；实际构建使用项目内 `.tools\apache-maven-3.9.9\bin\mvn.cmd` 完成。
+- 本阶段只完成路径沙箱和授权目录协议传递，真实文件读取、写入、命令执行仍未实现。
+- 本轮没有自动启动 relay-server 和 agent-client 做端到端 GUI 验证，避免后台打开不可控窗口；已通过单元测试和全量构建验证核心代码。
+
+### 下一阶段计划
+
+下一阶段应严格按 `tasks/phase-05-readonly-operations.md` 执行。如果开始实现真实只读文件能力，必须统一使用 `PathSandbox` 校验路径，所有读取限制在用户手动选择的授权目录内，并继续保持 Agent UI 可见和操作日志可审计。

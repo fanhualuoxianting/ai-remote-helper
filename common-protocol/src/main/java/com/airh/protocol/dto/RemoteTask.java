@@ -15,6 +15,7 @@ public record RemoteTask(
         TaskStatus status,
         RiskLevel riskLevel,
         List<PermissionType> requiredPermissions,
+        String authorizedDirectory,
         TaskPayload payload,
         Instant createdAt,
         Instant expiresAt

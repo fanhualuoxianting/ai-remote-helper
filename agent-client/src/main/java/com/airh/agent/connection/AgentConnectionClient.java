@@ -175,6 +175,10 @@ public class AgentConnectionClient {
             Object taskId = event.get("taskId");
             Object taskType = event.get("taskType");
             if (taskId != null && taskType != null) {
+                Object authorizedDirectory = event.get("authorizedDirectory");
+                if (authorizedDirectory != null) {
+                    listener.onLog("任务授权目录：" + authorizedDirectory);
+                }
                 handleTask(event, taskId.toString(), taskType.toString());
                 return;
             }

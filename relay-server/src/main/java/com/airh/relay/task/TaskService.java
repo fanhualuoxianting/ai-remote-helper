@@ -61,6 +61,7 @@ public class TaskService {
                 TaskStatus.PENDING,
                 RiskLevel.LOW,
                 List.of(PermissionType.VIEW_LOGS),
+                connection.authorizedDirectory(),
                 payload,
                 now,
                 now.plusSeconds(timeoutSeconds)

@@ -36,6 +36,10 @@ public class AgentConnectionController {
             publishError(message.deviceId(), "INVALID_AGENT_HELLO", "deviceId 或 STOMP session 缺失");
             return;
         }
+        if (message.authorizedDirectory() == null || message.authorizedDirectory().isBlank()) {
+            publishError(message.deviceId(), "MISSING_AUTHORIZED_DIRECTORY", "缺少授权目录，拒绝连接注册");
+            return;
+        }
 
         DeviceConnection connection = deviceRegistry.register(message, stompSessionId);
         AgentOnlineMessage onlineMessage = new AgentOnlineMessage(

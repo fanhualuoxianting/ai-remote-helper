@@ -77,6 +77,14 @@ public class DeviceRegistry {
                 .findFirst();
     }
 
+    public Optional<String> getAuthorizedDirectory(String deviceId) {
+        DeviceConnection connection = devicesById.get(deviceId);
+        if (connection == null || !connection.online()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(connection.authorizedDirectory());
+    }
+
     private String generateConnectionCode() {
         int number = RANDOM.nextInt(1_000_000);
         return "%06d".formatted(number);
