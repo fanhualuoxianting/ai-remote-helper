@@ -44,12 +44,17 @@ class McpProtocolHandlerTest {
         JsonNode tools = response.getResult().get("tools");
         assertNotNull(tools);
         assertTrue(tools.isArray());
-        assertEquals(5, tools.size());
-        assertEquals("list_directory", tools.get(0).get("name").asText());
-        assertEquals("read_file", tools.get(1).get("name").asText());
-        assertEquals("write_file", tools.get(2).get("name").asText());
-        assertEquals("apply_patch", tools.get(3).get("name").asText());
-        assertEquals("run_command", tools.get(4).get("name").asText());
+        assertEquals(10, tools.size());
+        assertEquals("remote_list_devices", tools.get(0).get("name").asText());
+        assertEquals("remote_connect_session", tools.get(1).get("name").asText());
+        assertEquals("remote_list_dir", tools.get(2).get("name").asText());
+        assertEquals("remote_read_file", tools.get(3).get("name").asText());
+        assertEquals("remote_write_file", tools.get(4).get("name").asText());
+        assertEquals("remote_apply_patch", tools.get(5).get("name").asText());
+        assertEquals("remote_run_command", tools.get(6).get("name").asText());
+        assertEquals("remote_get_task_logs", tools.get(7).get("name").asText());
+        assertEquals("remote_kill_task", tools.get(8).get("name").asText());
+        assertEquals("remote_generate_report", tools.get(9).get("name").asText());
     }
 
     @Test
@@ -57,7 +62,7 @@ class McpProtocolHandlerTest {
         ObjectNode args = objectMapper.createObjectNode();
         args.put("path", ".");
         ObjectNode params = objectMapper.createObjectNode();
-        params.put("name", "list_directory");
+        params.put("name", "remote_list_dir");
         params.set("arguments", args);
         McpRequest request = new McpRequest("3", "tools/call", params);
         McpResponse response = handler.handle(request);

@@ -14,11 +14,11 @@ public class TaskBridge {
 
     public String mapToolToTaskType(String toolName) {
         return switch (toolName) {
-            case "list_directory" -> TaskType.LIST_DIR.name();
-            case "read_file" -> TaskType.READ_FILE.name();
-            case "write_file" -> TaskType.WRITE_FILE.name();
-            case "apply_patch" -> TaskType.APPLY_PATCH.name();
-            case "run_command" -> TaskType.RUN_COMMAND.name();
+            case "remote_list_dir", "list_directory" -> TaskType.LIST_DIR.name();
+            case "remote_read_file", "read_file" -> TaskType.READ_FILE.name();
+            case "remote_write_file", "write_file" -> TaskType.WRITE_FILE.name();
+            case "remote_apply_patch", "apply_patch" -> TaskType.APPLY_PATCH.name();
+            case "remote_run_command", "run_command" -> TaskType.RUN_COMMAND.name();
             default -> null;
         };
     }
