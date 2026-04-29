@@ -19,7 +19,10 @@ public class CommandRiskDetector {
             Pattern.compile("(?i)(^|[;&|\\s])dd\\s+[^;&|]*\\bif=[^;&|]*\\s+[^;&|]*\\bof=/dev/[^\\s;&|]+"),
             Pattern.compile("(?i)(^|[;&|\\s])dd\\s+[^;&|]*\\bof=/dev/[^\\s;&|]+\\s+[^;&|]*\\bif=[^;&|]*"),
             Pattern.compile("(?i)>\\s*/dev/(sd[a-z]|hd[a-z]|nvme\\d+n\\d+|mmcblk\\d+)\\b"),
-            Pattern.compile("(?i)(curl|wget)\\b[^;&|]*\\|\\s*(sh|bash|zsh|fish)\\b")
+            Pattern.compile("(?i)(curl|wget)\\b[^;&|]*\\|\\s*(sh|bash|zsh|fish)\\b"),
+            Pattern.compile("(?i)powershell\\s+-(enc|encodedcommand)\\b"),
+            Pattern.compile("(?i)rd\\s+/s\\s+/q(\\s|$)"),
+            Pattern.compile("(?i)net\\s+user\\b")
     );
 
     private static final List<Pattern> HIGH_PATTERNS = List.of(
@@ -38,7 +41,11 @@ public class CommandRiskDetector {
             Pattern.compile("(?i)(^|[;&|\\s])rm(\\s|$)"),
             Pattern.compile("(?i)(^|[;&|\\s])del(\\s|$)"),
             Pattern.compile("(?i)(^|[;&|\\s])kill(\\s|$)"),
-            Pattern.compile("(?i)(^|[;&|\\s])service\\s+\\S+\\s+stop(\\s|$)")
+            Pattern.compile("(?i)(^|[;&|\\s])service\\s+\\S+\\s+stop(\\s|$)"),
+            Pattern.compile("(?i)(^|[;&|\\s])npm\\s+install(\\s|$)"),
+            Pattern.compile("(?i)(^|[;&|\\s])pip\\s+install(\\s|$)"),
+            Pattern.compile("(?i)(^|[;&|\\s])docker\\s+compose\\s+up(\\s|$)"),
+            Pattern.compile("(?i)(^|[;&|\\s])git\\s+pull(\\s|$)")
     );
 
     public RiskLevel detect(String command) {
