@@ -15,8 +15,8 @@ class ReportGenerationServiceTest {
         ReportGenerationService service = new ReportGenerationService();
         String report = service.generateReport(tempDir);
         assertNotNull(report);
-        assertTrue(report.contains("AI Remote Helper Report"));
-        assertTrue(report.contains("Authorized Directory"));
+        assertTrue(report.contains("AI Remote Helper 会话报告"));
+        assertTrue(report.contains("授权目录"));
     }
 
     @Test

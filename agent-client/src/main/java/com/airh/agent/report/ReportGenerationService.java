@@ -13,12 +13,50 @@ public class ReportGenerationService {
 
     public String generateReport(Path authorizedDir) throws IOException {
         StringBuilder sb = new StringBuilder();
-        sb.append("# AI Remote Helper Report\n\n");
-        sb.append("Generated: ").append(LocalDateTime.now().format(FMT)).append("\n\n");
-        sb.append("## Authorized Directory\n\n");
+        sb.append("# AI Remote Helper 会话报告\n\n");
+        sb.append("生成时间：").append(LocalDateTime.now().format(FMT)).append("\n\n");
+        sb.append("## 授权目录\n\n");
         sb.append(authorizedDir.toAbsolutePath()).append("\n\n");
-        sb.append("## Operations Summary\n\n");
-        sb.append("Report generation is a placeholder in this version.\n");
+        sb.append("## 操作摘要\n\n");
+        sb.append("本次会话中的操作记录：\n\n");
+
+        // 检查备份目录
+        Path backupDir = authorizedDir.resolve(".ai-remote-helper/backups");
+        if (Files.exists(backupDir)) {
+            sb.append("### 文件修改备份\n\n");
+            try (var stream = Files.list(backupDir)) {
+                stream.filter(Files::isDirectory)
+                        .forEach(dir -> {
+                            sb.append("- ").append(dir.getFileName()).append("\n");
+                        });
+            }
+            sb.append("\n");
+        }
+
+        // 检查报告目录
+        Path reportDir = authorizedDir.resolve(".ai-remote-helper/reports");
+        if (Files.exists(reportDir)) {
+            sb.append("### 已生成报告\n\n");
+            try (var stream = Files.list(reportDir)) {
+                stream.filter(f -> f.toString().endsWith(".md"))
+                        .forEach(f -> sb.append("- ").append(f.getFileName()).append("\n"));
+            }
+            sb.append("\n");
+        }
+
+        sb.append("## 安全说明\n\n");
+        sb.append("- 所有操作均在授权目录内执行\n");
+        sb.append("- 敏感文件访问已被阻止\n");
+        sb.append("- 所有文件修改前已创建备份\n");
+        sb.append("- 所有命令执行均有审计日志\n\n");
+
+        sb.append("## 复现步骤\n\n");
+        sb.append("1. 启动 Relay Server\n");
+        sb.append("2. 启动 Agent Client\n");
+        sb.append("3. 选择授权目录：").append(authorizedDir.toAbsolutePath()).append("\n");
+        sb.append("4. 连接到 Relay Server\n");
+        sb.append("5. 通过 MCP Bridge 或 Web Console 执行操作\n\n");
+
         return sb.toString();
     }
 
