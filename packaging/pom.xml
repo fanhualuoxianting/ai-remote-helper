@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.airh</groupId>
         <artifactId>ai-remote-helper</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.1.3-SNAPSHOT</version>
     </parent>
 
     <artifactId>packaging</artifactId>
@@ -22,11 +22,11 @@
                 <version>1.6.0</version>
                 <configuration>
                     <name>AI-Remote-Helper-Agent</name>
-                    <appVersion>0.1.0</appVersion>
+                    <appVersion>0.1.3</appVersion>
                     <vendor>AI Remote Helper</vendor>
                     <destination>dist</destination>
                     <type>APP_IMAGE</type>
-                    <mainJar>agent-client-0.1.0-SNAPSHOT.jar</mainJar>
+                    <mainJar>agent-client-0.1.3-SNAPSHOT.jar</mainJar>
                     <mainClass>com.airh.agent.AgentClientApplication</mainClass>
                     <modulePath>
                         <path>agent-client/target</path>

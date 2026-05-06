@@ -7,6 +7,11 @@ import com.airh.agent.safety.PathSandbox;
 import com.airh.protocol.dto.AgentHelloMessage;
 import com.airh.protocol.dto.HeartbeatMessage;
 import com.airh.protocol.dto.TaskLogMessage;
+import com.airh.protocol.dto.TaskResultMessage;
+import com.airh.protocol.enums.TaskStatus;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
@@ -63,7 +68,7 @@ public class AgentConnectionClient {
                 (taskId, message) -> sendTaskLog(taskId, "INFO", message));
 
         stompClient = new WebSocketStompClient(new StandardWebSocketClient());
-        stompClient.setMessageConverter(new MappingJackson2MessageConverter());
+        stompClient.setMessageConverter(buildMessageConverter());
         stompClient.connectAsync(websocketUrl, new StompSessionHandlerAdapter() {
             @Override
             public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
@@ -75,7 +80,7 @@ public class AgentConnectionClient {
                         deviceId,
                         deviceName,
                         authorizedDirectory,
-                        "0.1.0-SNAPSHOT",
+                        "0.1.3",
                         Instant.now().toString()
                 ));
                 startHeartbeat();
@@ -214,10 +219,26 @@ public class AgentConnectionClient {
             taskExecutor.execute(taskId, sessionId, taskType, payload)
                     .thenAccept(result -> {
                         if (isConnected()) {
-                            stompSession.send("/app/agent/task-result", result);
+                            sendTaskResult(result);
                         }
                         listener.onTaskOutput(taskId, result.output());
                         listener.onTaskFinished(taskId, result.status().name(), result.summary());
+                    })
+                    .exceptionally(throwable -> {
+                        String message = throwable.getCause() == null ? throwable.getMessage() : throwable.getCause().getMessage();
+                        listener.onLog("任务执行链异常：" + message);
+                        sendTaskResult(new TaskResultMessage(
+                                taskId,
+                                sessionId,
+                                TaskStatus.FAILED,
+                                "Agent 任务执行链异常",
+                                "",
+                                "",
+                                message == null ? "未知异常" : message,
+                                Instant.now()
+                        ));
+                        listener.onTaskFinished(taskId, TaskStatus.FAILED.name(), message == null ? "未知异常" : message);
+                        return null;
                     });
         }
 
@@ -231,15 +252,38 @@ public class AgentConnectionClient {
     }
 
     private void sendTaskLog(String taskId, String level, String message) {
-        if (isConnected()) {
-            stompSession.send("/app/agent/task-log", new TaskLogMessage(
-                    taskId,
-                    sessionId,
-                    level,
-                    message,
-                    Instant.now()
-            ));
+        try {
+            if (isConnected()) {
+                stompSession.send("/app/agent/task-log", new TaskLogMessage(
+                        taskId,
+                        sessionId,
+                        level,
+                        message,
+                        Instant.now()
+                ));
+            }
+        } catch (RuntimeException exception) {
+            listener.onLog("任务日志上报失败：" + exception.getMessage());
         }
         listener.onLog("任务日志已上报：" + message);
+    }
+
+    private void sendTaskResult(TaskResultMessage result) {
+        try {
+            if (isConnected()) {
+                stompSession.send("/app/agent/task-result", result);
+            }
+        } catch (RuntimeException exception) {
+            listener.onLog("任务结果上报失败：" + exception.getMessage());
+        }
+    }
+
+    private MappingJackson2MessageConverter buildMessageConverter() {
+        ObjectMapper objectMapper = new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        MappingJackson2MessageConverter converter = new MappingJackson2MessageConverter();
+        converter.setObjectMapper(objectMapper);
+        return converter;
     }
 }

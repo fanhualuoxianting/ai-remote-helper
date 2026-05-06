@@ -37,7 +37,7 @@ Write-Host "Creating application image..." -ForegroundColor Yellow
     --type app-image `
     --name "AI-Remote-Helper-Agent" `
     --input "agent-client\target" `
-    --main-jar "agent-client-0.1.0-SNAPSHOT.jar" `
+    --main-jar "agent-client-0.1.3-SNAPSHOT.jar" `
     --main-class "com.airh.agent.AgentClientApplication" `
     --dest $OutputDir `
     --java-options "--add-opens javafx.graphics/com.sun.javafx.application=ALL-UNNAMED" `

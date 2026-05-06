@@ -2,6 +2,13 @@
 
 All notable changes to AI Remote Helper will be documented in this file.
 
+## 0.1.3 - Agent task result hotfix
+
+- Fixed the agent-side STOMP JSON converter so `Instant` fields in task logs and task results can be serialized correctly.
+- Added defensive fallback handling around task log and task result reporting to avoid silent execution-chain aborts.
+- Updated relay health version reporting, in-app version labels, and Windows packaging defaults to `0.1.3`.
+- Rebuilt the Windows LAN app-image package for redistribution.
+
 ## 0.1.2 - OpenClaw runner and AI task bridge polish
 
 - Added a helper-side AI Runner selector so the desktop client can launch either `Codex` or `OpenClaw`.

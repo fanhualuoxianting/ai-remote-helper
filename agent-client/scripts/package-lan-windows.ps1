@@ -2,7 +2,7 @@ param(
     [switch]$Offline,
     [string]$MavenRepo,
     [string]$OutputRoot,
-    [string]$AppVersion = "0.1.2"
+    [string]$AppVersion = "0.1.3"
 )
 
 $ErrorActionPreference = "Stop"
