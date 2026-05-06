@@ -15,12 +15,19 @@ import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.BorderPane;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalTime;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -28,6 +35,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 public class ControllerViewController {
     @FXML private BorderPane root;
@@ -66,6 +74,8 @@ public class ControllerViewController {
     @FXML private Button relaunchAiButton;
     @FXML private Button launchDirectAiButton;
     @FXML private Button importSelectedHelpRequestButton;
+    @FXML private Button executeNextAiTaskButton;
+    @FXML private Button openAiRunFolderButton;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
@@ -78,6 +88,7 @@ public class ControllerViewController {
     private String sessionId;
     private JsonNode selectedHelpRequest;
     private final AiRunnerService aiRunnerService = new AiRunnerService();
+    private AiRunnerService.AiLaunchSession activeAiLaunchSession;
     private final ScheduledExecutorService helpRequestPollingExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread thread = new Thread(r, "airh-help-request-poller");
         thread.setDaemon(true);
@@ -212,8 +223,9 @@ public class ControllerViewController {
         launchDirectAiButton.setDisable(true);
         directAiStatusLabel.setText("正在拉起可见 Codex 会话...");
         try {
-            java.nio.file.Path promptPath = aiRunnerService.launchDirectAssist(baseRelayUrl(), sessionId, requestContent);
-            directAiStatusLabel.setText("Codex 已启动，Prompt：" + promptPath);
+            AiRunnerService.AiLaunchSession launchSession = aiRunnerService.launchDirectAssist(baseRelayUrl(), sessionId, requestContent);
+            activeAiLaunchSession = launchSession;
+            directAiStatusLabel.setText("Codex 已启动。让 AI 往任务队列写 JSON，然后点“执行下一条 AI 任务”。目录：" + launchSession.runDir());
             appendLog("已直接拉起 Codex 处理当前远程会话");
         } catch (IOException | RuntimeException exception) {
             String message = exception.getMessage() == null ? exception.toString() : exception.getMessage();
@@ -222,6 +234,54 @@ public class ControllerViewController {
         } finally {
             launchDirectAiButton.setDisable(false);
             refreshHelpRequestButtons();
+        }
+    }
+
+    @FXML
+    private void executeNextAiTask() {
+        clearError();
+        if (sessionId == null || sessionId.isBlank()) {
+            showError("请先连接远程设备");
+            return;
+        }
+        if (activeAiLaunchSession == null) {
+            showError("还没有已启动的 AI 会话");
+            return;
+        }
+        Path requestFile;
+        try {
+            requestFile = findNextPendingAiTaskFile(activeAiLaunchSession.requestQueueDir());
+        } catch (IOException exception) {
+            showError("读取 AI 任务目录失败：" + exception.getMessage());
+            return;
+        }
+        if (requestFile == null) {
+            directAiStatusLabel.setText("当前没有待执行的 AI 任务文件。请让 AI 继续往队列写入 JSON。");
+            refreshHelpRequestButtons();
+            return;
+        }
+        try {
+            QueuedAiTask queuedAiTask = parseQueuedAiTask(requestFile);
+            directAiStatusLabel.setText("正在执行 AI 任务：" + queuedAiTask.summary());
+            submitTask(queuedAiTask.taskType(), queuedAiTask.data(), queuedAiTask.timeoutSeconds(),
+                    body -> finalizeAiTaskRequest(requestFile, queuedAiTask, body));
+        } catch (IOException | IllegalArgumentException exception) {
+            showError("解析 AI 任务文件失败：" + exception.getMessage());
+            writeAiFailureResult(requestFile, exception.getMessage() == null ? exception.toString() : exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void openAiRunFolder() {
+        clearError();
+        if (activeAiLaunchSession == null) {
+            showError("还没有已启动的 AI 会话目录");
+            return;
+        }
+        try {
+            new ProcessBuilder("explorer.exe", activeAiLaunchSession.runDir().toString()).start();
+        } catch (IOException exception) {
+            showError("打开 AI 目录失败：" + exception.getMessage());
         }
     }
 
@@ -246,6 +306,11 @@ public class ControllerViewController {
     }
 
     private void createTask(TaskType taskType, Map<String, Object> data, int timeoutSeconds) {
+        submitTask(taskType, data, timeoutSeconds, null);
+    }
+
+    private void submitTask(TaskType taskType, Map<String, Object> data, int timeoutSeconds,
+                            java.util.function.Consumer<String> successCallback) {
         clearError();
         if (sessionId == null || sessionId.isBlank()) {
             showError("请先通过连接码连接远程设备");
@@ -265,7 +330,12 @@ public class ControllerViewController {
                 "timeoutSeconds", timeoutSeconds
         );
         sendPost("/api/sessions/" + sessionId + "/tasks", request)
-                .thenAccept(body -> Platform.runLater(() -> handleCreatedTask(taskType, body)))
+                .thenAccept(body -> Platform.runLater(() -> {
+                    handleCreatedTask(taskType, body);
+                    if (successCallback != null) {
+                        successCallback.accept(body);
+                    }
+                }))
                 .exceptionally(this::showAsyncError);
     }
 
@@ -421,10 +491,12 @@ public class ControllerViewController {
         String requestId = request.path("requestId").asText("");
         String content = request.path("content").asText("");
         try {
-            java.nio.file.Path promptPath = aiRunnerService.launchCodex(requestId, baseRelayUrl(), sessionId, content);
-            helpRequestReviewStatusLabel.setText("Codex 已在可见 PowerShell 中启动，Prompt：" + promptPath);
+            AiRunnerService.AiLaunchSession launchSession = aiRunnerService.launchCodex(requestId, baseRelayUrl(), sessionId, content);
+            activeAiLaunchSession = launchSession;
+            helpRequestReviewStatusLabel.setText("Codex 已启动。AI 可把任务写入队列，由客户端代为执行。");
+            directAiStatusLabel.setText("当前 AI 工作目录：" + launchSession.runDir() + "。等待 AI 写入任务 JSON。");
             sendPost("/api/sessions/" + sessionId + "/help-requests/" + requestId + "/ai-launched",
-                    Map.of("reviewerNote", "Codex prompt: " + promptPath))
+                    Map.of("reviewerNote", "Codex prompt: " + launchSession.promptPath()))
                     .thenAccept(ignored -> Platform.runLater(this::refreshHelpRequests))
                     .exceptionally(this::showAsyncError);
             appendLog("已为需求拉起 Codex：" + requestId);
@@ -522,6 +594,8 @@ public class ControllerViewController {
         }
         if (launchDirectAiButton != null) launchDirectAiButton.setDisable(!connected);
         if (importSelectedHelpRequestButton != null) importSelectedHelpRequestButton.setDisable(!connected || !selected);
+        if (executeNextAiTaskButton != null) executeNextAiTaskButton.setDisable(!connected || activeAiLaunchSession == null);
+        if (openAiRunFolderButton != null) openAiRunFolderButton.setDisable(activeAiLaunchSession == null);
     }
 
     private void clearError() {
@@ -551,5 +625,107 @@ public class ControllerViewController {
 
     private String blank(Object value) {
         return value == null ? "" : value.toString();
+    }
+
+    private Path findNextPendingAiTaskFile(Path requestQueueDir) throws IOException {
+        if (requestQueueDir == null || !Files.isDirectory(requestQueueDir)) {
+            return null;
+        }
+        try (Stream<Path> files = Files.list(requestQueueDir)) {
+            return files
+                    .filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".json"))
+                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                    .findFirst()
+                    .orElse(null);
+        }
+    }
+
+    private QueuedAiTask parseQueuedAiTask(Path requestFile) throws IOException {
+        JsonNode rootNode = objectMapper.readTree(Files.readString(requestFile, StandardCharsets.UTF_8));
+        String taskTypeText = rootNode.path("taskType").asText("").strip();
+        if (taskTypeText.isBlank()) {
+            throw new IllegalArgumentException("缺少 taskType");
+        }
+        TaskType taskType;
+        try {
+            taskType = TaskType.valueOf(taskTypeText);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("不支持的 taskType: " + taskTypeText, exception);
+        }
+        JsonNode dataNode = rootNode.path("payload").path("data");
+        if (dataNode.isMissingNode() || dataNode.isNull()) {
+            dataNode = rootNode.path("data");
+        }
+        if (!dataNode.isObject()) {
+            throw new IllegalArgumentException("缺少 data/payload.data 对象");
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = objectMapper.convertValue(dataNode, Map.class);
+        String summary = rootNode.path("summary").asText(taskType.name());
+        int timeoutSeconds = rootNode.path("timeoutSeconds").asInt(30);
+        if (timeoutSeconds <= 0) {
+            timeoutSeconds = 30;
+        }
+        return new QueuedAiTask(taskType, data, timeoutSeconds, summary);
+    }
+
+    private void finalizeAiTaskRequest(Path requestFile, QueuedAiTask queuedAiTask, String taskResponseBody) {
+        try {
+            if (activeAiLaunchSession == null) {
+                throw new IllegalStateException("AI 会话已丢失");
+            }
+            JsonNode responseNode = objectMapper.readTree(taskResponseBody);
+            Path resultFile = resolveResultFile(activeAiLaunchSession.resultQueueDir(), requestFile);
+            Map<String, Object> resultPayload = new LinkedHashMap<>();
+            resultPayload.put("summary", queuedAiTask.summary());
+            resultPayload.put("sourceRequest", requestFile.getFileName().toString());
+            resultPayload.put("taskType", queuedAiTask.taskType().name());
+            resultPayload.put("submittedAt", Instant.now().toString());
+            resultPayload.put("relayResponse", objectMapper.convertValue(responseNode, Object.class));
+            Files.writeString(resultFile, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultPayload), StandardCharsets.UTF_8);
+            archiveAiRequestFile(requestFile, "processed");
+            directAiStatusLabel.setText("已执行 AI 任务：" + queuedAiTask.summary() + "。结果已写回 " + resultFile.getFileName());
+            appendLog("AI 任务已提交：" + queuedAiTask.summary() + "，来源文件=" + requestFile.getFileName());
+        } catch (Exception exception) {
+            showError("写回 AI 任务结果失败：" + exception.getMessage());
+        } finally {
+            refreshHelpRequestButtons();
+        }
+    }
+
+    private void writeAiFailureResult(Path requestFile, String errorMessage) {
+        if (activeAiLaunchSession == null || requestFile == null) {
+            return;
+        }
+        try {
+            Path resultFile = resolveResultFile(activeAiLaunchSession.resultQueueDir(), requestFile);
+            Map<String, Object> resultPayload = new LinkedHashMap<>();
+            resultPayload.put("sourceRequest", requestFile.getFileName().toString());
+            resultPayload.put("failedAt", Instant.now().toString());
+            resultPayload.put("error", errorMessage);
+            Files.writeString(resultFile, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(resultPayload), StandardCharsets.UTF_8);
+            archiveAiRequestFile(requestFile, "failed");
+            directAiStatusLabel.setText("AI 任务文件执行失败，已把错误写回结果目录。");
+            refreshHelpRequestButtons();
+        } catch (Exception ignored) {
+            // Keep the original request file in place if the feedback write also fails.
+        }
+    }
+
+    private Path resolveResultFile(Path resultQueueDir, Path requestFile) {
+        String baseName = requestFile.getFileName().toString();
+        if (baseName.endsWith(".json")) {
+            baseName = baseName.substring(0, baseName.length() - 5);
+        }
+        return resultQueueDir.resolve(baseName + ".result.json");
+    }
+
+    private void archiveAiRequestFile(Path requestFile, String bucket) throws IOException {
+        Path archiveDir = requestFile.getParent().resolve(bucket);
+        Files.createDirectories(archiveDir);
+        Files.move(requestFile, archiveDir.resolve(requestFile.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private record QueuedAiTask(TaskType taskType, Map<String, Object> data, int timeoutSeconds, String summary) {
     }
 }

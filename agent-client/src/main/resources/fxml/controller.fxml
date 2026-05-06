@@ -82,6 +82,8 @@
                                                         <TextArea fx:id="directAiRequestArea" promptText="例如：先看一下对方项目为什么启动失败，优先查看授权根目录、README、构建脚本和报错日志，再给出修复建议并尽量修好。" styleClass="chat-input-area" wrapText="true" VBox.vgrow="ALWAYS" />
                                                         <HBox alignment="CENTER_LEFT" spacing="10">
                                                             <Button fx:id="launchDirectAiButton" onAction="#launchDirectAiRequest" styleClass="primary-button" text="直接拉起 Codex" />
+                                                            <Button fx:id="executeNextAiTaskButton" onAction="#executeNextAiTask" styleClass="success-button" text="执行下一条 AI 任务" />
+                                                            <Button fx:id="openAiRunFolderButton" onAction="#openAiRunFolder" styleClass="ghost-button" text="打开 AI 工作目录" />
                                                             <Button fx:id="importSelectedHelpRequestButton" onAction="#importSelectedHelpRequest" styleClass="ghost-button" text="导入当前审核需求" />
                                                         </HBox>
                                                         <Label fx:id="directAiStatusLabel" styleClass="value-text" text="连接远程设备后，可以直接在这里给 AI 下达远程协助目标。" wrapText="true" />

@@ -159,7 +159,8 @@ Helper:
 2. Start the Agent Client and choose `我要帮别人处理项目`, or connect through the MCP Bridge.
 3. Enter the assisted user's connection code.
 4. Review pending requests in `需求审核`; approving a request opens a visible PowerShell/Codex session on the helper machine.
-5. Browse authorized files, run allowed commands, inspect logs, and generate reports.
+5. In `AI 协助`, let the AI write JSON task files into its work directory, then click `执行下一条 AI 任务` so the JavaFX client submits them through the relay on the AI's behalf.
+6. Browse authorized files, run allowed commands, inspect logs, and generate reports.
 
 LAN details are documented in [docs/LAN_MODE.md](docs/LAN_MODE.md).
 
@@ -203,7 +204,7 @@ $env:AIRH_AI_RUNNER_COMMAND='codex'
 $env:AIRH_AI_RUNNER_WORKDIR="$env:USERPROFILE\.ai-remote-helper\ai-runs"
 ```
 
-The generated prompt explicitly instructs the AI to operate through the relay-server APIs and stay within the assisted user's authorized directory.
+The generated prompt now prefers a local task-queue bridge. The AI writes JSON task files into its run directory, and the helper client executes them with its own Java `HttpClient`, which avoids child-shell WinSock issues while still staying inside the assisted user's authorized directory.
 
 ## Documentation
 

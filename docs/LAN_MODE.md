@@ -144,7 +144,9 @@ Agent 客户端检测到 `localhost` 或 `127.0.0.1` 时会显示明显警告。
 2. relay-server 将需求保存为 `PENDING` 状态。
 3. 协助方在“我要帮别人处理项目”的“需求审核”标签页查看需求。
 4. 协助方批准后，需求状态变为 `APPROVED`，客户端在协助方电脑上打开可见 PowerShell/Codex 会话。
-5. Codex Prompt 会要求 AI 通过 relay-server REST API 操作远程 Agent，不能把本机项目目录当成对方目录。
+5. Codex Prompt 会优先要求 AI 把远程操作写成 JSON 任务文件，放到本地 AI 工作目录里的 `relay-task-requests`。
+6. 协助方回到客户端点击“执行下一条 AI 任务”，由 JavaFX 客户端用自己的 Java `HttpClient` 代为调用 relay-server。
+7. 提交结果会写回同一工作目录下的 `relay-task-results`，AI 可以继续读取结果再规划下一步。
 
 可选配置：
 
@@ -159,6 +161,7 @@ $env:AIRH_AI_RUNNER_WORKDIR="$env:USERPROFILE\.ai-remote-helper\ai-runs"
 - 不请求管理员权限。
 - 不使用 `--dangerously-bypass-approvals-and-sandbox`。
 - Codex 仍使用 `--ask-for-approval on-request`，遇到需要确认的本机命令会由协助者确认。
+- 即使可见 Codex 子进程出现 WinSock 10106，AI 仍可通过“任务文件 -> 客户端执行”桥接方式继续协助。
 - 对方所有文件和命令操作仍受授权目录和 safety 模块限制。
 
 ## 桌面客户端布局
