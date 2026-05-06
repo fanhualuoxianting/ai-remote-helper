@@ -8,6 +8,7 @@ All notable changes to AI Remote Helper will be documented in this file.
 - Added visible Codex runner launch after helper approval.
 - Added helper-side direct AI assist prompt entry.
 - Replaced the Windows app icon and wired `jpackage --icon` so Explorer no longer shows the default Java icon.
+- Updated in-app version labels and LAN packaging default app version to `0.1.1`.
 - Rebuilt the Windows LAN app-image package for Release distribution.
 
 ## 0.1.0 - MVP
