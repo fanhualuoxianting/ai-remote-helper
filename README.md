@@ -96,6 +96,12 @@ Run the Relay Server:
 mvn -f relay-server/pom.xml spring-boot:run
 ```
 
+For Windows LAN demos, the helper can use the wrapper script below. It starts local Docker dependencies when available and runs the Relay Server on port `18080`, avoiding common conflicts with local Tomcat on `8080`:
+
+```powershell
+scripts\start-relay-lan.bat
+```
+
 Run the Agent Client:
 
 ```powershell
@@ -119,6 +125,7 @@ npm run dev
 Default local development endpoints:
 
 - Relay Server: `http://localhost:8080`
+- LAN Relay helper script: `http://localhost:18080`
 - MCP Bridge SSE: `http://localhost:9090/mcp/sse`
 - Web Console: `http://localhost:3000`
 
@@ -146,7 +153,7 @@ Assisted user:
 
 Helper:
 
-1. Start the Relay Server.
+1. Start the Relay Server. On Windows LAN demos, prefer `scripts\start-relay-lan.bat`.
 2. Start the Agent Client and choose `我要帮别人处理项目`, or connect through the MCP Bridge.
 3. Enter the assisted user's connection code.
 4. Browse authorized files, run allowed commands, inspect logs, and generate reports.

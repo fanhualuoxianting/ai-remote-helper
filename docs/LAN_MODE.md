@@ -8,7 +8,27 @@
 
 ## 协助者启动 relay-server
 
-在协助者电脑上执行：
+Windows 局域网演示推荐直接使用脚本启动，默认端口是 `18080`：
+
+```powershell
+scripts\start-relay-lan.bat
+```
+
+如果你在离线环境使用本机缓存，可以执行：
+
+```powershell
+scripts\start-relay-lan.bat -Offline
+```
+
+脚本会优先使用项目内 `.tools\apache-maven-3.9.9\bin\mvn.cmd`，如果不存在则使用系统 `mvn`。如果本机已有 `airh-postgres` 和 `airh-redis` Docker 容器，脚本会尝试启动它们。
+
+如果需要改端口，例如使用 `19080`：
+
+```powershell
+scripts\start-relay-lan.bat -Port 19080
+```
+
+如果你不使用脚本，也可以手动启动：
 
 ```powershell
 git clone https://github.com/<your-name>/ai-remote-helper.git
@@ -33,6 +53,13 @@ Invoke-RestMethod http://localhost:8080/api/health
 Invoke-RestMethod http://localhost:8080/api/network/addresses
 ```
 
+如果使用推荐脚本，端口默认是 `18080`，验证命令为：
+
+```powershell
+Invoke-RestMethod http://localhost:18080/api/health
+Invoke-RestMethod http://localhost:18080/api/network/addresses
+```
+
 ## 查看协助者电脑 IP
 
 推荐优先使用 relay-server 控制台打印的局域网访问候选，也可以在协助者电脑执行：
@@ -50,7 +77,7 @@ ipconfig
 3. 先在三步流程中选择授权目录。未选择授权目录时，“连接”按钮保持禁用。
 4. 保持默认“局域网连接（推荐）”。
 5. 在“协助者 IP”中输入协助者电脑的局域网 IP，例如 `192.168.1.8`。
-6. 端口默认填写 `8080`。
+6. 如果协助者用 Maven 默认方式启动，端口填写 `8080`；如果协助者用 `scripts\start-relay-lan.bat` 启动，端口填写 `18080`。
 7. 点击“测试连接”，确认 `/api/health` 返回服务器在线。
 8. 点击“连接”。
 9. 连接成功后，界面会大号显示连接码，例如 `738-291`。
@@ -63,9 +90,15 @@ HTTP Base URL: http://{ip}:{port}
 WebSocket URL: ws://{ip}:{port}/ws
 ```
 
-## Windows 防火墙放行 8080
+## Windows 防火墙放行端口
 
-如果被协助者无法连接协助者电脑，协助者电脑需要允许 8080 端口入站：
+如果被协助者无法连接协助者电脑，协助者电脑需要允许 relay-server 端口入站。推荐脚本默认端口是 `18080`：
+
+```powershell
+New-NetFirewallRule -DisplayName "AI Remote Helper Relay 18080" -Direction Inbound -Protocol TCP -LocalPort 18080 -Action Allow
+```
+
+如果使用 Maven 默认端口 `8080`：
 
 ```powershell
 New-NetFirewallRule -DisplayName "AI Remote Helper Relay 8080" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
@@ -74,7 +107,7 @@ New-NetFirewallRule -DisplayName "AI Remote Helper Relay 8080" -Direction Inboun
 如果不想保留规则，可以删除：
 
 ```powershell
-Remove-NetFirewallRule -DisplayName "AI Remote Helper Relay 8080"
+Remove-NetFirewallRule -DisplayName "AI Remote Helper Relay 18080"
 ```
 
 ## 为什么不能填 localhost
@@ -112,9 +145,9 @@ Agent 客户端检测到 `localhost` 或 `127.0.0.1` 时会显示明显警告。
 
 ## 常见问题排查
 
-- 测试连接失败：确认两台电脑连接同一个 Wi-Fi 或同一个局域网。
+- 测试连接失败：确认两台电脑连接同一个 Wi-Fi 或同一个局域网，并确认端口填写的是协助者实际启动的端口。
 - HTTP 超时或拒绝连接：确认协助者电脑的 relay-server 已启动。
-- 只能本机访问：检查 Windows 防火墙是否放行 TCP 8080。
+- 只能本机访问：检查 Windows 防火墙是否放行 relay-server 端口，例如 TCP 18080。
 - IP 填错：在协助者电脑查看 relay-server 启动日志或执行 `ipconfig`。
 - 使用了虚拟网卡 IP：不要选择 Docker、VMware、VirtualBox、WSL、Hyper-V 虚拟网卡地址。
 - “连接”按钮不可点击：先选择授权目录，再测试连接，测试成功后才允许连接。
