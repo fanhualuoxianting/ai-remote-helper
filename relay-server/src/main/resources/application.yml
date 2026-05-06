@@ -4,8 +4,6 @@ server:
 spring:
   application:
     name: ai-remote-helper-relay
-airh:
-  version: 0.1.3
   datasource:
     url: ${AIRH_DATASOURCE_URL:jdbc:postgresql://localhost:15432/testdb}
     username: ${AIRH_DATASOURCE_USERNAME:postgres}
@@ -22,3 +20,6 @@ airh:
     redis:
       host: ${AIRH_REDIS_HOST:localhost}
       port: ${AIRH_REDIS_PORT:16379}
+
+airh:
+  version: 0.1.3
