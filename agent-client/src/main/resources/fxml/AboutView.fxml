@@ -15,7 +15,7 @@
         <HBox alignment="CENTER_LEFT" spacing="12" styleClass="compact-header">
             <VBox spacing="4" HBox.hgrow="ALWAYS">
                 <Label styleClass="page-title" text="关于" />
-                <Label styleClass="section-caption" text="AI Remote Helper 0.1.1" wrapText="true" />
+                <Label styleClass="section-caption" text="AI Remote Helper 0.1.2" wrapText="true" />
             </VBox>
             <Label styleClass="mode-pill" text="LAN Edition" />
             <padding>
@@ -47,7 +47,7 @@
                 <VBox maxWidth="Infinity" spacing="9" styleClass="panel" GridPane.columnIndex="2" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0">
                     <Label styleClass="section-title" text="版本信息" />
                     <Label styleClass="field-name" text="版本号" />
-                    <Label styleClass="value-text" text="0.1.1" wrapText="true" />
+                    <Label styleClass="value-text" text="0.1.2" wrapText="true" />
                     <Label styleClass="field-name" text="工作模式" />
                     <Label styleClass="value-text" text="局域网优先 / Local Only" wrapText="true" />
                     <Label styleClass="field-name" text="运行环境" />

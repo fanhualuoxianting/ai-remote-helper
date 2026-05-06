@@ -30,7 +30,7 @@
                 <VBox spacing="8" styleClass="sidebar-footer">
                     <Label styleClass="sidebar-footer-title" text="当前工作模式" wrapText="true" />
                     <Label styleClass="muted-text" text="局域网直连，不隐藏运行。" wrapText="true" />
-                    <Label styleClass="version-text" text="版本 0.1.1" />
+                    <Label styleClass="version-text" text="版本 0.1.2" />
                 </VBox>
                 <padding>
                     <Insets bottom="20" left="18" right="18" top="22" />

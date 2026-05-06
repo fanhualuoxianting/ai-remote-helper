@@ -2,6 +2,13 @@
 
 All notable changes to AI Remote Helper will be documented in this file.
 
+## 0.1.2 - OpenClaw runner and AI task bridge polish
+
+- Added a helper-side AI Runner selector so the desktop client can launch either `Codex` or `OpenClaw`.
+- Kept the local JSON task queue bridge as the preferred execution path, so child-shell WinSock issues no longer block remote help.
+- Updated in-app version labels and LAN packaging default app version to `0.1.2`.
+- Rebuilt the Windows LAN app-image package for Release distribution.
+
 ## 0.1.1 - Help request workflow and Windows icon
 
 - Added assisted-user help request submission and helper-side approval workflow.
