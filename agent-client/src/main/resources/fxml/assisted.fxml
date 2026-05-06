@@ -118,6 +118,35 @@
                                     </VBox>
                                 </Tab>
 
+                                <Tab text="提交需求">
+                                    <BorderPane styleClass="tab-surface">
+                                        <top>
+                                            <VBox spacing="8">
+                                                <Label styleClass="section-title" text="像和 AI 对话一样提交需求" />
+                                                <Label styleClass="muted-text" text="你的需求会先提交给协助者审核；协助者确认后，才会在他那边拉起 AI 开始处理。" wrapText="true" />
+                                            </VBox>
+                                        </top>
+                                        <center>
+                                            <SplitPane dividerPositions="0.48" styleClass="inner-split">
+                                                <items>
+                                                    <VBox spacing="10">
+                                                        <TextArea fx:id="helpRequestInputArea" promptText="例如：帮我看一下这个项目为什么启动失败，并尽量修好。请先说明你会做什么。" styleClass="chat-input-area" wrapText="true" VBox.vgrow="ALWAYS" />
+                                                        <HBox alignment="CENTER_LEFT" spacing="10">
+                                                            <Button fx:id="submitHelpRequestButton" onAction="#submitHelpRequest" styleClass="primary-button" text="提交给协助者审核" />
+                                                            <Button fx:id="refreshHelpRequestsButton" onAction="#refreshHelpRequests" styleClass="ghost-button" text="刷新状态" />
+                                                        </HBox>
+                                                        <Label fx:id="helpRequestStatusLabel" styleClass="value-text" text="连接成功后才能提交需求。" wrapText="true" />
+                                                    </VBox>
+                                                    <VBox spacing="10">
+                                                        <Label styleClass="section-title" text="需求历史" />
+                                                        <TextArea fx:id="helpRequestHistoryArea" editable="false" promptText="这里会显示你的需求状态：待审核、已批准、已拒绝或 AI 已启动。" styleClass="mono-area" wrapText="true" VBox.vgrow="ALWAYS" />
+                                                    </VBox>
+                                                </items>
+                                            </SplitPane>
+                                        </center>
+                                    </BorderPane>
+                                </Tab>
+
                                 <Tab text="日志与结果">
                                     <SplitPane dividerPositions="0.50" styleClass="inner-split">
                                         <items>

@@ -1,6 +1,7 @@
 package com.airh.agent.ui;
 
 import com.airh.protocol.dto.HealthResponse;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.airh.agent.connection.AgentConnectionClient;
 import com.airh.agent.connection.AgentConnectionListener;
@@ -34,6 +35,8 @@ import java.time.Duration;
 import java.time.LocalTime;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class AssistedController {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -63,6 +66,11 @@ public class AssistedController {
     @FXML private CheckBox highRiskCheck;
     @FXML private TextArea logsArea;
     @FXML private TextArea taskResultArea;
+    @FXML private TextArea helpRequestInputArea;
+    @FXML private TextArea helpRequestHistoryArea;
+    @FXML private Label helpRequestStatusLabel;
+    @FXML private Button submitHelpRequestButton;
+    @FXML private Button refreshHelpRequestsButton;
     @FXML private Button chooseDirectoryButton;
     @FXML private Button connectButton;
     @FXML private Button pauseButton;
@@ -82,6 +90,7 @@ public class AssistedController {
     private Path authorizedDirectoryPath;
     private PathSandbox pathSandbox;
     private boolean connectionTestPassed;
+    private String currentSessionId;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(4))
             .build();
@@ -117,6 +126,7 @@ public class AssistedController {
         pauseButton.setDisable(true);
         connectButton.setDisable(true);
         copyCodeButton.setDisable(true);
+        refreshHelpRequestControls();
         updateStepIndicators();
         configureConnectionModeControls();
         loadLanConfig();
@@ -241,11 +251,13 @@ public class AssistedController {
             connectionClient.disconnect();
         }
         statusLabel.setText("已断开");
+        currentSessionId = null;
         connectionCodeLabel.setText("未生成");
         copyCodeButton.setText("复制连接码");
         copyCodeButton.setDisable(true);
         currentTaskLabel.setText("无");
         refreshConnectButtonState();
+        refreshHelpRequestControls();
         disconnectButton.setDisable(true);
         pauseButton.setDisable(true);
         updateStepIndicators();
@@ -273,8 +285,133 @@ public class AssistedController {
         }
     }
 
+    @FXML
+    private void submitHelpRequest() {
+        if (currentSessionId == null || currentSessionId.isBlank()) {
+            setHelpRequestStatus("请先连接成功并生成连接码，再提交需求。");
+            return;
+        }
+        String content = helpRequestInputArea.getText() == null ? "" : helpRequestInputArea.getText().strip();
+        if (content.isBlank()) {
+            setHelpRequestStatus("需求不能为空。");
+            return;
+        }
+        submitHelpRequestButton.setDisable(true);
+        setHelpRequestStatus("正在提交需求，等待协助方审核...");
+        sendPost("/api/sessions/" + currentSessionId + "/help-requests", Map.of("content", content))
+                .whenComplete((body, throwable) -> Platform.runLater(() -> {
+                    submitHelpRequestButton.setDisable(false);
+                    if (throwable != null) {
+                        setHelpRequestStatus("提交失败：" + errorMessage(throwable));
+                        return;
+                    }
+                    helpRequestInputArea.clear();
+                    setHelpRequestStatus("需求已提交，等待协助方审核。");
+                    appendLog("已提交需求给协助者审核");
+                    refreshHelpRequests();
+                }));
+    }
+
+    @FXML
+    private void refreshHelpRequests() {
+        if (currentSessionId == null || currentSessionId.isBlank()) {
+            helpRequestHistoryArea.setText("连接成功后，这里会显示你提交过的需求。");
+            return;
+        }
+        refreshHelpRequestsButton.setDisable(true);
+        sendGet("/api/sessions/" + currentSessionId + "/help-requests")
+                .whenComplete((body, throwable) -> Platform.runLater(() -> {
+                    refreshHelpRequestsButton.setDisable(false);
+                    if (throwable != null) {
+                        setHelpRequestStatus("刷新失败：" + errorMessage(throwable));
+                        return;
+                    }
+                    helpRequestHistoryArea.setText(formatHelpRequests(body));
+                }));
+    }
+
     private void appendLog(String message) {
         logsArea.appendText("[" + LocalTime.now().withNano(0) + "] " + message + System.lineSeparator());
+    }
+
+    private CompletableFuture<String> sendGet(String path) {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(currentServerUrl() + path))
+                .timeout(Duration.ofSeconds(8))
+                .GET()
+                .build();
+        return send(request);
+    }
+
+    private CompletableFuture<String> sendPost(String path, Object body) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(currentServerUrl() + path))
+                    .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(8))
+                    .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(body)))
+                    .build();
+            return send(request);
+        } catch (IOException exception) {
+            return CompletableFuture.failedFuture(exception);
+        }
+    }
+
+    private CompletableFuture<String> send(HttpRequest request) {
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                        throw new IllegalStateException("HTTP " + response.statusCode() + "：" + response.body());
+                    }
+                    return response.body();
+                });
+    }
+
+    private String formatHelpRequests(String body) {
+        try {
+            JsonNode requests = OBJECT_MAPPER.readTree(body);
+            if (!requests.isArray() || requests.isEmpty()) {
+                return "暂无需求。你可以像和 AI 对话一样写下要对方帮你完成的事情。";
+            }
+            StringBuilder builder = new StringBuilder();
+            for (JsonNode request : requests) {
+                builder.append("[").append(request.path("status").asText("-")).append("] ")
+                        .append(request.path("createdAt").asText("-")).append(System.lineSeparator())
+                        .append(request.path("content").asText("")).append(System.lineSeparator());
+                String note = request.path("reviewerNote").asText("");
+                if (!note.isBlank()) {
+                    builder.append("协助方备注：").append(note).append(System.lineSeparator());
+                }
+                builder.append("requestId: ").append(request.path("requestId").asText("-"))
+                        .append(System.lineSeparator()).append(System.lineSeparator());
+            }
+            return builder.toString();
+        } catch (IOException exception) {
+            return body;
+        }
+    }
+
+    private String currentServerUrl() {
+        return removeTrailingSlash(serverUrlField.getText() == null ? "" : serverUrlField.getText().strip());
+    }
+
+    private void refreshHelpRequestControls() {
+        boolean connected = currentSessionId != null && !currentSessionId.isBlank();
+        if (submitHelpRequestButton != null) submitHelpRequestButton.setDisable(!connected);
+        if (refreshHelpRequestsButton != null) refreshHelpRequestsButton.setDisable(!connected);
+        if (helpRequestInputArea != null) helpRequestInputArea.setDisable(!connected);
+        if (helpRequestStatusLabel != null) {
+            helpRequestStatusLabel.setText(connected ? "可以提交需求，协助方审核后会拉起 AI。" : "连接成功后才能提交需求。");
+        }
+    }
+
+    private void setHelpRequestStatus(String message) {
+        if (helpRequestStatusLabel != null) {
+            helpRequestStatusLabel.setText(message);
+        }
+    }
+
+    private String errorMessage(Throwable throwable) {
+        Throwable cause = throwable.getCause() == null ? throwable : throwable.getCause();
+        return cause.getMessage() == null ? cause.toString() : cause.getMessage();
     }
 
     private void configureConnectionModeControls() {
@@ -515,12 +652,15 @@ public class AssistedController {
         @Override
         public void onConnected(String sessionId, String connectionCode) {
             Platform.runLater(() -> {
+                currentSessionId = sessionId;
                 statusLabel.setText("已连接");
                 connectionCodeLabel.setText(connectionCode);
                 copyCodeButton.setDisable(false);
                 copyCodeButton.setText("复制连接码");
                 sessionExpiresLabel.setText("sessionId：" + sessionId);
                 updateStepIndicators();
+                refreshHelpRequestControls();
+                refreshHelpRequests();
                 appendLog("连接成功，sessionId：" + sessionId + "，连接码：" + connectionCode);
             });
         }
@@ -529,6 +669,7 @@ public class AssistedController {
         public void onDisconnected(String reason) {
             Platform.runLater(() -> {
                 statusLabel.setText("已断开");
+                currentSessionId = null;
                 connectionCodeLabel.setText("未生成");
                 copyCodeButton.setText("复制连接码");
                 copyCodeButton.setDisable(true);
@@ -537,6 +678,7 @@ public class AssistedController {
                 disconnectButton.setDisable(true);
                 pauseButton.setDisable(true);
                 updateStepIndicators();
+                refreshHelpRequestControls();
                 appendLog(reason);
             });
         }

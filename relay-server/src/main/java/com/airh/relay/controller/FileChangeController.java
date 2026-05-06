@@ -15,7 +15,7 @@ public class FileChangeController {
 
     @PostMapping("/sessions/{sessionId}/file-changes")
     public ResponseEntity<FileChangeRecord> recordFileChange(
-            @PathVariable String sessionId,
+            @PathVariable("sessionId") String sessionId,
             @RequestBody FileChangeRecord record) {
         record.setSessionId(sessionId);
         record.setCreatedAt(Instant.now().toString());
@@ -24,7 +24,7 @@ public class FileChangeController {
     }
 
     @GetMapping("/sessions/{sessionId}/file-changes")
-    public ResponseEntity<List<FileChangeRecord>> getFileChanges(@PathVariable String sessionId) {
+    public ResponseEntity<List<FileChangeRecord>> getFileChanges(@PathVariable("sessionId") String sessionId) {
         List<FileChangeRecord> changes = sessionChanges.getOrDefault(sessionId, List.of());
         return ResponseEntity.ok(changes);
     }

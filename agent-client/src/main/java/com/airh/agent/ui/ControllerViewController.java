@@ -11,6 +11,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.BorderPane;
 
 import java.io.IOException;
@@ -21,7 +22,12 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class ControllerViewController {
     @FXML private BorderPane root;
@@ -50,6 +56,12 @@ public class ControllerViewController {
     @FXML private Button generateReportButton;
     @FXML private Button debugListDirButton;
     @FXML private Button debugGetLogsButton;
+    @FXML private TextArea helpRequestsArea;
+    @FXML private Label helpRequestReviewStatusLabel;
+    @FXML private Button refreshHelpRequestsButton;
+    @FXML private Button approveHelpRequestButton;
+    @FXML private Button rejectHelpRequestButton;
+    @FXML private Button relaunchAiButton;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
@@ -60,6 +72,14 @@ public class ControllerViewController {
 
     private AgentClientApplication application;
     private String sessionId;
+    private JsonNode selectedHelpRequest;
+    private final AiRunnerService aiRunnerService = new AiRunnerService();
+    private final ScheduledExecutorService helpRequestPollingExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread thread = new Thread(r, "airh-help-request-poller");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private ScheduledFuture<?> helpRequestPollingTask;
 
     public BorderPane getRoot() {
         return root;
@@ -79,11 +99,13 @@ public class ControllerViewController {
         permissionsLabel.setText("读取文件、修改文件、执行命令受 Agent 授权目录和 safety 模块限制");
         errorLabel.setText("");
         refreshTaskButtons();
+        refreshHelpRequestButtons();
         appendLog("控制台已启动。请输入对方连接码，通过 relay-server 建立手动调试会话。");
     }
 
     @FXML
     private void backToRoleSelect() {
+        stopHelpRequestPolling();
         application.showRoleSelectView();
     }
 
@@ -137,6 +159,37 @@ public class ControllerViewController {
                     appendLog("已拉取任务日志：" + taskId);
                 }))
                 .exceptionally(this::showAsyncError);
+    }
+
+    @FXML
+    private void refreshHelpRequests() {
+        if (sessionId == null || sessionId.isBlank()) {
+            helpRequestsArea.setText("请先连接远程设备。");
+            refreshHelpRequestButtons();
+            return;
+        }
+        sendGet("/api/sessions/" + sessionId + "/help-requests")
+                .thenAccept(body -> Platform.runLater(() -> renderHelpRequests(body)))
+                .exceptionally(this::showAsyncError);
+    }
+
+    @FXML
+    private void approveSelectedHelpRequest() {
+        reviewSelectedHelpRequest("approve");
+    }
+
+    @FXML
+    private void rejectSelectedHelpRequest() {
+        reviewSelectedHelpRequest("reject");
+    }
+
+    @FXML
+    private void relaunchAiForSelectedHelpRequest() {
+        if (selectedHelpRequest == null) {
+            showError("没有可拉起 AI 的需求");
+            return;
+        }
+        launchAiForRequest(selectedHelpRequest);
     }
 
     @FXML
@@ -203,6 +256,7 @@ public class ControllerViewController {
                     notConnectedHint.setText("已连接远程设备。请只在对方授权目录内执行协助操作。");
                     refreshTaskButtons();
                     appendLog("已匹配远程设备：" + deviceIdLabel.getText() + "，sessionId=" + sessionId);
+                    startHelpRequestPolling();
                     return;
                 }
             }
@@ -231,6 +285,129 @@ public class ControllerViewController {
         } catch (IOException exception) {
             return CompletableFuture.failedFuture(exception);
         }
+    }
+
+    private void renderHelpRequests(String body) {
+        try {
+            JsonNode requests = objectMapper.readTree(body);
+            selectedHelpRequest = null;
+            if (!requests.isArray() || requests.isEmpty()) {
+                helpRequestsArea.setText("暂无需求。等待被协助方在“提交需求”Tab 中提交。");
+                helpRequestReviewStatusLabel.setText("暂无待审核需求");
+                refreshHelpRequestButtons();
+                return;
+            }
+            StringBuilder builder = new StringBuilder();
+            JsonNode firstActionable = null;
+            for (JsonNode request : requests) {
+                String status = request.path("status").asText("-");
+                if (firstActionable == null && ("PENDING".equals(status) || "APPROVED".equals(status)
+                        || "AI_LAUNCH_FAILED".equals(status))) {
+                    firstActionable = request;
+                }
+                builder.append("[").append(status).append("] ")
+                        .append(request.path("createdAt").asText("-")).append(System.lineSeparator())
+                        .append(request.path("content").asText("")).append(System.lineSeparator());
+                String note = request.path("reviewerNote").asText("");
+                if (!note.isBlank()) {
+                    builder.append("备注：").append(note).append(System.lineSeparator());
+                }
+                builder.append("requestId: ").append(request.path("requestId").asText("-"))
+                        .append(System.lineSeparator()).append(System.lineSeparator());
+            }
+            selectedHelpRequest = firstActionable == null ? requests.get(0) : firstActionable;
+            helpRequestsArea.setText(builder.toString());
+            helpRequestReviewStatusLabel.setText(selectedHelpRequest == null
+                    ? "没有可操作需求"
+                    : "当前操作目标：" + selectedHelpRequest.path("requestId").asText("-")
+                    + " / " + selectedHelpRequest.path("status").asText("-"));
+            refreshHelpRequestButtons();
+        } catch (IOException exception) {
+            showError("解析需求列表失败：" + exception.getMessage());
+        }
+    }
+
+    private void reviewSelectedHelpRequest(String action) {
+        if (selectedHelpRequest == null) {
+            showError("没有选中的需求");
+            return;
+        }
+        String requestId = selectedHelpRequest.path("requestId").asText("");
+        if (requestId.isBlank()) {
+            showError("需求缺少 requestId");
+            return;
+        }
+        String note = "";
+        if ("reject".equals(action)) {
+            TextInputDialog dialog = new TextInputDialog("请补充需求细节后再提交");
+            dialog.setTitle("拒绝需求");
+            dialog.setHeaderText("填写拒绝原因");
+            dialog.setContentText("备注：");
+            Optional<String> result = dialog.showAndWait();
+            if (result.isEmpty()) {
+                return;
+            }
+            note = result.get();
+        }
+        Map<String, Object> request = Map.of("reviewerNote", note);
+        sendPost("/api/sessions/" + sessionId + "/help-requests/" + requestId + "/" + action, request)
+                .thenAccept(body -> Platform.runLater(() -> {
+                    if ("approve".equals(action)) {
+                        try {
+                            JsonNode approved = objectMapper.readTree(body);
+                            helpRequestReviewStatusLabel.setText("已批准，正在拉起 Codex...");
+                            launchAiForRequest(approved);
+                        } catch (IOException exception) {
+                            showError("解析批准响应失败：" + exception.getMessage());
+                        }
+                    } else {
+                        helpRequestReviewStatusLabel.setText("已拒绝需求：" + requestId);
+                        refreshHelpRequests();
+                    }
+                }))
+                .exceptionally(this::showAsyncError);
+    }
+
+    private void launchAiForRequest(JsonNode request) {
+        String requestId = request.path("requestId").asText("");
+        String content = request.path("content").asText("");
+        try {
+            java.nio.file.Path promptPath = aiRunnerService.launchCodex(requestId, baseRelayUrl(), sessionId, content);
+            helpRequestReviewStatusLabel.setText("Codex 已在可见 PowerShell 中启动，Prompt：" + promptPath);
+            sendPost("/api/sessions/" + sessionId + "/help-requests/" + requestId + "/ai-launched",
+                    Map.of("reviewerNote", "Codex prompt: " + promptPath))
+                    .thenAccept(ignored -> Platform.runLater(this::refreshHelpRequests))
+                    .exceptionally(this::showAsyncError);
+            appendLog("已为需求拉起 Codex：" + requestId);
+        } catch (IOException | RuntimeException exception) {
+            helpRequestReviewStatusLabel.setText("拉起 Codex 失败：" + exception.getMessage());
+            sendPost("/api/sessions/" + sessionId + "/help-requests/" + requestId + "/ai-launch-failed",
+                    Map.of("reviewerNote", exception.getMessage() == null ? exception.toString() : exception.getMessage()))
+                    .thenAccept(ignored -> Platform.runLater(this::refreshHelpRequests))
+                    .exceptionally(this::showAsyncError);
+        }
+    }
+
+    private void startHelpRequestPolling() {
+        stopHelpRequestPolling();
+        refreshHelpRequests();
+        helpRequestPollingTask = helpRequestPollingExecutor.scheduleAtFixedRate(() ->
+                Platform.runLater(this::refreshHelpRequests), 3, 3, TimeUnit.SECONDS);
+    }
+
+    private void stopHelpRequestPolling() {
+        if (helpRequestPollingTask != null) {
+            helpRequestPollingTask.cancel(false);
+            helpRequestPollingTask = null;
+        }
+    }
+
+    private String baseRelayUrl() {
+        String base = relayUrlField.getText().strip();
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base;
     }
 
     private CompletableFuture<String> send(HttpRequest request) {
@@ -274,6 +451,26 @@ public class ControllerViewController {
         generateReportButton.setDisable(!connected);
         debugListDirButton.setDisable(!connected);
         debugGetLogsButton.setDisable(!connected);
+        refreshHelpRequestButtons();
+    }
+
+    private void refreshHelpRequestButtons() {
+        boolean connected = sessionId != null && !sessionId.isBlank();
+        boolean selected = selectedHelpRequest != null;
+        String status = selected ? selectedHelpRequest.path("status").asText("") : "";
+        if (refreshHelpRequestsButton != null) refreshHelpRequestsButton.setDisable(!connected);
+        if (approveHelpRequestButton != null) {
+            approveHelpRequestButton.setDisable(!connected || !selected
+                    || !("PENDING".equals(status) || "AI_LAUNCH_FAILED".equals(status)));
+        }
+        if (rejectHelpRequestButton != null) {
+            rejectHelpRequestButton.setDisable(!connected || !selected
+                    || !("PENDING".equals(status) || "AI_LAUNCH_FAILED".equals(status)));
+        }
+        if (relaunchAiButton != null) {
+            relaunchAiButton.setDisable(!connected || !selected
+                    || !("APPROVED".equals(status) || "AI_LAUNCH_FAILED".equals(status) || "AI_LAUNCHED".equals(status)));
+        }
     }
 
     private void clearError() {

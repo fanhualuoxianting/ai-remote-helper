@@ -82,6 +82,7 @@ ipconfig
 8. 点击“连接”。
 9. 连接成功后，界面会大号显示连接码，例如 `738-291`。
 10. 点击“复制连接码”，按钮会显示“已复制”，然后把连接码发给协助者。
+11. 如需让协助方的 AI 处理问题，切到“提交需求”标签页，像正常对话一样写下需求并提交审核。
 
 Agent 会根据输入生成：
 
@@ -126,12 +127,39 @@ Agent 客户端检测到 `localhost` 或 `127.0.0.1` 时会显示明显警告。
 2. 输入被协助者发来的连接码。
 3. 点击“连接远程设备”。
 4. 页面顶部状态条显示“已连接远程设备”后，快捷操作按钮会启用。
-5. “文件浏览”分组可查看授权根目录、读取相对路径文件，例如 `pom.xml`。
-6. “命令执行”分组可输入命令、工作目录和超时时间，例如命令 `mvn test`、工作目录 `.`、超时 `30` 秒。
-7. “会话输出”分组可查看任务日志或生成中文报告。
-8. “高级调试”默认折叠，仅保留 `list_dir`、`get_logs` 这类 API 风格入口供开发排障。
+5. “需求审核”标签页会自动刷新被协助方提交的自然语言需求。
+6. 点击“批准并拉起 Codex”后，本机会打开一个可见 PowerShell/Codex 会话，Prompt 中包含 relay-server、sessionId 和安全边界。
+7. “文件浏览”分组可查看授权根目录、读取相对路径文件，例如 `pom.xml`。
+8. “命令执行”分组可输入命令、工作目录和超时时间，例如命令 `mvn test`、工作目录 `.`、超时 `30` 秒。
+9. “会话输出”分组可查看任务日志或生成中文报告。
+10. “高级调试”默认折叠，仅保留 `list_dir`、`get_logs` 这类 API 风格入口供开发排障。
 
 正式 AI 调用仍应通过 `mcp-bridge`。控制端不会直接连接对方电脑执行命令，所有任务仍通过 `relay-server` 转发，并由 Agent 在授权目录和 safety 模块限制下执行。
+
+## 需求审核与 Codex Runner
+
+第一版支持“需求级审批”：
+
+1. 被协助方在 Agent Client 的“提交需求”标签页输入需求。
+2. relay-server 将需求保存为 `PENDING` 状态。
+3. 协助方在“我要帮别人处理项目”的“需求审核”标签页查看需求。
+4. 协助方批准后，需求状态变为 `APPROVED`，客户端在协助方电脑上打开可见 PowerShell/Codex 会话。
+5. Codex Prompt 会要求 AI 通过 relay-server REST API 操作远程 Agent，不能把本机项目目录当成对方目录。
+
+可选配置：
+
+```powershell
+$env:AIRH_AI_RUNNER_COMMAND='codex'
+$env:AIRH_AI_RUNNER_WORKDIR="$env:USERPROFILE\.ai-remote-helper\ai-runs"
+```
+
+安全边界：
+
+- 不隐藏运行，不后台静默执行。
+- 不请求管理员权限。
+- 不使用 `--dangerously-bypass-approvals-and-sandbox`。
+- Codex 仍使用 `--ask-for-approval on-request`，遇到需要确认的本机命令会由协助者确认。
+- 对方所有文件和命令操作仍受授权目录和 safety 模块限制。
 
 ## 桌面客户端布局
 

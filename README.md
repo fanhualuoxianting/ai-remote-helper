@@ -12,6 +12,7 @@ This project is designed for legitimate pair-programming and troubleshooting sce
 - Restricts file and command operations to the user-selected workspace.
 - Blocks sensitive files, path traversal, and dangerous commands.
 - Generates task logs, file-change records, and session reports.
+- Lets the assisted user submit natural-language help requests that the helper reviews before launching a local AI session.
 - Supports a LAN packaging flow for Windows app-image distribution.
 
 ## Current Status
@@ -149,14 +150,16 @@ Assisted user:
 3. Select a project directory as the authorized workspace.
 4. Enter the helper machine's LAN IP and relay port.
 5. Test the connection, connect, and share the generated connection code.
-6. Watch all operations in the visible Agent Client window and disconnect at any time.
+6. Optionally open `提交需求` and describe what you want the helper's AI to do.
+7. Watch all operations in the visible Agent Client window and disconnect at any time.
 
 Helper:
 
 1. Start the Relay Server. On Windows LAN demos, prefer `scripts\start-relay-lan.bat`.
 2. Start the Agent Client and choose `我要帮别人处理项目`, or connect through the MCP Bridge.
 3. Enter the assisted user's connection code.
-4. Browse authorized files, run allowed commands, inspect logs, and generate reports.
+4. Review pending requests in `需求审核`; approving a request opens a visible PowerShell/Codex session on the helper machine.
+5. Browse authorized files, run allowed commands, inspect logs, and generate reports.
 
 LAN details are documented in [docs/LAN_MODE.md](docs/LAN_MODE.md).
 
@@ -188,6 +191,19 @@ or with JVM properties:
 ```
 
 It is rendered inside the application window, can be skipped, and does not create OS-level popups or control user input.
+
+## Approved AI Runner
+
+The helper-side AI runner is defaulted to Codex CLI and is only launched after the helper approves a submitted request. It opens a visible PowerShell window and does not use dangerous bypass flags.
+
+Optional environment variables:
+
+```powershell
+$env:AIRH_AI_RUNNER_COMMAND='codex'
+$env:AIRH_AI_RUNNER_WORKDIR="$env:USERPROFILE\.ai-remote-helper\ai-runs"
+```
+
+The generated prompt explicitly instructs the AI to operate through the relay-server APIs and stay within the assisted user's authorized directory.
 
 ## Documentation
 

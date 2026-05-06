@@ -414,6 +414,15 @@
     -fx-font-size: 12px;
 }
 
+.chat-input-area {
+    -fx-font-size: 14px;
+    -fx-background-color: #F8FAFC;
+    -fx-border-color: #CBD5E1;
+    -fx-border-radius: 14;
+    -fx-background-radius: 14;
+    -fx-padding: 10;
+}
+
 .terminal-area {
     -fx-control-inner-background: #0F172A;
     -fx-background-color: #0F172A;

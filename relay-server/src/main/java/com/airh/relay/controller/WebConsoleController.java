@@ -27,14 +27,14 @@ public class WebConsoleController {
     }
 
     @GetMapping("/devices/{sessionId}")
-    public ResponseEntity<DeviceConnection> getDevice(@PathVariable String sessionId) {
+    public ResponseEntity<DeviceConnection> getDevice(@PathVariable("sessionId") String sessionId) {
         return deviceRegistry.findOnlineBySessionId(sessionId)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/tasks/{taskId}")
-    public ResponseEntity<TaskRecord> getTask(@PathVariable String taskId) {
+    public ResponseEntity<TaskRecord> getTask(@PathVariable("taskId") String taskId) {
         TaskRecord task = taskService.getTask(taskId);
         if (task == null) {
             return ResponseEntity.notFound().build();

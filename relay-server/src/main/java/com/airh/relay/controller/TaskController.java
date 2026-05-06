@@ -24,17 +24,17 @@ public class TaskController {
     }
 
     @PostMapping("/sessions/{sessionId}/tasks")
-    public CreateTaskResponse createTask(@PathVariable String sessionId, @RequestBody CreateTaskRequest request) {
+    public CreateTaskResponse createTask(@PathVariable("sessionId") String sessionId, @RequestBody CreateTaskRequest request) {
         return taskService.createAndDispatch(sessionId, request);
     }
 
     @GetMapping("/tasks/{taskId}")
-    public TaskRecord getTask(@PathVariable String taskId) {
+    public TaskRecord getTask(@PathVariable("taskId") String taskId) {
         return taskService.getTask(taskId);
     }
 
     @GetMapping("/tasks/{taskId}/logs")
-    public List<TaskLog> getTaskLogs(@PathVariable String taskId) {
+    public List<TaskLog> getTaskLogs(@PathVariable("taskId") String taskId) {
         return taskService.getLogs(taskId);
     }
 }

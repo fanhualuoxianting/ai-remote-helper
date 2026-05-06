@@ -67,6 +67,31 @@
                     <center>
                         <TabPane tabClosingPolicy="UNAVAILABLE" styleClass="workbench-tabs">
                             <tabs>
+                                <Tab text="需求审核">
+                                    <BorderPane styleClass="tab-surface">
+                                        <top>
+                                            <VBox spacing="10">
+                                                <HBox alignment="CENTER_LEFT" spacing="10">
+                                                    <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                                        <Label styleClass="section-title" text="被协助方提交的需求" />
+                                                        <Label styleClass="muted-text" text="先审核需求；批准后会在本机打开可见 PowerShell/Codex 会话，不会隐藏执行。" wrapText="true" />
+                                                    </VBox>
+                                                    <Button fx:id="refreshHelpRequestsButton" onAction="#refreshHelpRequests" styleClass="ghost-button" text="刷新" />
+                                                </HBox>
+                                                <HBox alignment="CENTER_LEFT" spacing="10">
+                                                    <Button fx:id="approveHelpRequestButton" onAction="#approveSelectedHelpRequest" styleClass="success-button" text="批准并拉起 Codex" />
+                                                    <Button fx:id="rejectHelpRequestButton" onAction="#rejectSelectedHelpRequest" styleClass="danger-button" text="拒绝需求" />
+                                                    <Button fx:id="relaunchAiButton" onAction="#relaunchAiForSelectedHelpRequest" styleClass="warning-button" text="重新拉起 AI" />
+                                                </HBox>
+                                                <Label fx:id="helpRequestReviewStatusLabel" styleClass="value-text" text="连接远程设备后自动刷新需求。" wrapText="true" />
+                                            </VBox>
+                                        </top>
+                                        <center>
+                                            <TextArea fx:id="helpRequestsArea" editable="false" promptText="暂无需求。连接远程设备后，这里会显示对方提交的需求、状态和备注。" styleClass="mono-area" wrapText="true" />
+                                        </center>
+                                    </BorderPane>
+                                </Tab>
+
                                 <Tab text="文件浏览">
                                     <BorderPane styleClass="tab-surface">
                                         <top>

@@ -99,12 +99,31 @@ if ($Offline) {
     $mavenArgs += "-o"
 }
 $mavenArgs += @(
-    "-pl",
-    "relay-server",
-    "-am",
+    "-f",
+    "relay-server\\pom.xml",
     "spring-boot:run",
     "-Dspring-boot.run.arguments=--server.port=$Port"
 )
+
+Write-Step "Refreshing shared local Maven modules"
+$installArgs = @()
+if (Test-Path $localRepo) {
+    $installArgs += "-Dmaven.repo.local=$localRepo"
+}
+if ($Offline) {
+    $installArgs += "-o"
+}
+$installArgs += @(
+    "-pl",
+    "common-protocol,common-safety",
+    "-am",
+    "install",
+    "-DskipTests"
+)
+& $mvn @installArgs
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to install shared Maven modules."
+}
 
 Write-Step "Starting relay server. Keep this window open while your classmate connects."
 Write-Host "Local health check: http://localhost:$Port/api/health"
