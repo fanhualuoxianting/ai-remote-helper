@@ -17,6 +17,7 @@ $AppImage = Join-Path $DistRoot $AppName
 $InputDir = Join-Path $ProjectRoot "agent-client\target\jpackage-input-lan"
 $JarPath = Join-Path $ProjectRoot "agent-client\target\agent-client-all.jar"
 $ReadmeTemplate = Join-Path $ProjectRoot "packaging\README-USER-LAN.txt"
+$IconPath = Join-Path $ProjectRoot "agent-client\src\main\resources\icons\app.ico"
 
 function Assert-Command($Name, $Hint) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -54,6 +55,9 @@ if ($LASTEXITCODE -ne 0) {
 if (-not (Test-Path $JarPath)) {
     throw "Expected jar not found: $JarPath"
 }
+if (-not (Test-Path $IconPath)) {
+    throw "Windows icon not found: $IconPath"
+}
 
 Write-Host "[2/4] Preparing jpackage input..."
 if (Test-Path $InputDir) {
@@ -74,6 +78,7 @@ $jpackageArgs = @(
     "--name", $AppName,
     "--app-version", $AppVersion,
     "--input", $InputDir,
+    "--icon", $IconPath,
     "--main-jar", "agent-client-all.jar",
     "--main-class", "com.airh.agent.ui.AgentClientLauncher",
     "--java-options", "-Dairh.profile=lan",

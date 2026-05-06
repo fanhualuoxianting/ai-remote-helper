@@ -11,11 +11,34 @@ public class AiRunnerService {
     private static final String DEFAULT_RUNNER = "codex";
 
     public Path launchCodex(String requestId, String relayUrl, String sessionId, String requestContent) throws IOException {
+        return launchRequest(
+                requestId,
+                relayUrl,
+                sessionId,
+                requestContent,
+                "# AI Remote Helper Approved Request",
+                "## 被协助方需求"
+        );
+    }
+
+    public Path launchDirectAssist(String relayUrl, String sessionId, String requestContent) throws IOException {
+        return launchRequest(
+                "direct-" + Instant.now().toEpochMilli(),
+                relayUrl,
+                sessionId,
+                requestContent,
+                "# AI Remote Helper Direct Assist Request",
+                "## 协助方直接输入的需求"
+        );
+    }
+
+    private Path launchRequest(String requestId, String relayUrl, String sessionId, String requestContent,
+                               String title, String requestHeading) throws IOException {
         Path runDir = resolveRunDir(requestId);
         Files.createDirectories(runDir);
         Path promptPath = runDir.resolve("approved-request-prompt.md");
         Path scriptPath = runDir.resolve("start-codex.ps1");
-        Files.writeString(promptPath, buildPrompt(relayUrl, sessionId, requestContent), StandardCharsets.UTF_8);
+        Files.writeString(promptPath, buildPrompt(relayUrl, sessionId, requestContent, title, requestHeading), StandardCharsets.UTF_8);
         Files.writeString(scriptPath, buildScript(promptPath, runDir), StandardCharsets.UTF_8);
 
         ProcessBuilder processBuilder = new ProcessBuilder(
@@ -62,13 +85,13 @@ public class AiRunnerService {
                 escapePowerShellSingleQuoted(runDir.toString()));
     }
 
-    private String buildPrompt(String relayUrl, String sessionId, String requestContent) {
+    private String buildPrompt(String relayUrl, String sessionId, String requestContent, String title, String requestHeading) {
         return """
-                # AI Remote Helper Approved Request
+                %s
 
                 你正在帮助一台远程 Agent 电脑处理已授权目录内的问题。
 
-                ## 被协助方需求
+                %s
 
                 %s
 
@@ -106,7 +129,7 @@ public class AiRunnerService {
                 - 不要请求管理员权限，不要隐藏运行，不要开机自启，不要接管鼠标键盘。
                 - 遇到高风险命令、删除、覆盖、大规模改动时，先向协助者说明风险并等待确认。
                 - 每次操作后尽量通过任务日志或任务结果确认实际效果。
-                """.formatted(requestContent, relayUrl, sessionId, relayUrl, relayUrl, sessionId, relayUrl, relayUrl);
+                """.formatted(title, requestHeading, requestContent, relayUrl, sessionId, relayUrl, relayUrl, sessionId, relayUrl, relayUrl);
     }
 
     private String safeName(String value) {

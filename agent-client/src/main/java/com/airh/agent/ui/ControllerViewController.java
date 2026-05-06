@@ -48,7 +48,9 @@ public class ControllerViewController {
     @FXML private TextField logsTaskIdField;
     @FXML private TextArea taskLogsArea;
     @FXML private TextArea taskResultArea;
+    @FXML private TextArea directAiRequestArea;
     @FXML private Label errorLabel;
+    @FXML private Label directAiStatusLabel;
     @FXML private Button listRootButton;
     @FXML private Button readFileButton;
     @FXML private Button runCommandButton;
@@ -62,6 +64,8 @@ public class ControllerViewController {
     @FXML private Button approveHelpRequestButton;
     @FXML private Button rejectHelpRequestButton;
     @FXML private Button relaunchAiButton;
+    @FXML private Button launchDirectAiButton;
+    @FXML private Button importSelectedHelpRequestButton;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
@@ -98,6 +102,7 @@ public class ControllerViewController {
         remoteDirectoryLabel.setText("-");
         permissionsLabel.setText("读取文件、修改文件、执行命令受 Agent 授权目录和 safety 模块限制");
         errorLabel.setText("");
+        directAiStatusLabel.setText("连接远程设备后，可以直接在这里给 AI 下达远程协助目标。");
         refreshTaskButtons();
         refreshHelpRequestButtons();
         appendLog("控制台已启动。请输入对方连接码，通过 relay-server 建立手动调试会话。");
@@ -193,6 +198,49 @@ public class ControllerViewController {
     }
 
     @FXML
+    private void launchDirectAiRequest() {
+        clearError();
+        if (sessionId == null || sessionId.isBlank()) {
+            showError("请先连接远程设备，再拉起 AI");
+            return;
+        }
+        String requestContent = directAiRequestArea.getText() == null ? "" : directAiRequestArea.getText().strip();
+        if (requestContent.isBlank()) {
+            showError("请输入要让 AI 执行的远程协助目标");
+            return;
+        }
+        launchDirectAiButton.setDisable(true);
+        directAiStatusLabel.setText("正在拉起可见 Codex 会话...");
+        try {
+            java.nio.file.Path promptPath = aiRunnerService.launchDirectAssist(baseRelayUrl(), sessionId, requestContent);
+            directAiStatusLabel.setText("Codex 已启动，Prompt：" + promptPath);
+            appendLog("已直接拉起 Codex 处理当前远程会话");
+        } catch (IOException | RuntimeException exception) {
+            String message = exception.getMessage() == null ? exception.toString() : exception.getMessage();
+            directAiStatusLabel.setText("拉起 Codex 失败：" + message);
+            showError("拉起 Codex 失败：" + message);
+        } finally {
+            launchDirectAiButton.setDisable(false);
+            refreshHelpRequestButtons();
+        }
+    }
+
+    @FXML
+    private void importSelectedHelpRequest() {
+        if (selectedHelpRequest == null) {
+            showError("当前没有可导入的需求");
+            return;
+        }
+        String content = selectedHelpRequest.path("content").asText("");
+        if (content.isBlank()) {
+            showError("选中的需求内容为空");
+            return;
+        }
+        directAiRequestArea.setText(content);
+        directAiStatusLabel.setText("已导入审核需求。你可以继续补充说明后再拉起 Codex。");
+    }
+
+    @FXML
     private void generateReport() {
         createTask(TaskType.GENERATE_REPORT, Map.of(), 30);
     }
@@ -254,6 +302,7 @@ public class ControllerViewController {
                     remoteDirectoryLabel.setText(device.path("authorizedDirectory").asText("-"));
                     permissionsLabel.setText("通过 relay-server 下发任务；实际文件、命令权限由 Agent 授权目录和 safety 模块执行");
                     notConnectedHint.setText("已连接远程设备。请只在对方授权目录内执行协助操作。");
+                    directAiStatusLabel.setText("已连接远程设备，可以直接输入 AI 协助目标。");
                     refreshTaskButtons();
                     appendLog("已匹配远程设备：" + deviceIdLabel.getText() + "，sessionId=" + sessionId);
                     startHelpRequestPolling();
@@ -471,6 +520,8 @@ public class ControllerViewController {
             relaunchAiButton.setDisable(!connected || !selected
                     || !("APPROVED".equals(status) || "AI_LAUNCH_FAILED".equals(status) || "AI_LAUNCHED".equals(status)));
         }
+        if (launchDirectAiButton != null) launchDirectAiButton.setDisable(!connected);
+        if (importSelectedHelpRequestButton != null) importSelectedHelpRequestButton.setDisable(!connected || !selected);
     }
 
     private void clearError() {

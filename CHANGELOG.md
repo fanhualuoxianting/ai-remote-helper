@@ -2,6 +2,14 @@
 
 All notable changes to AI Remote Helper will be documented in this file.
 
+## 0.1.1 - Help request workflow and Windows icon
+
+- Added assisted-user help request submission and helper-side approval workflow.
+- Added visible Codex runner launch after helper approval.
+- Added helper-side direct AI assist prompt entry.
+- Replaced the Windows app icon and wired `jpackage --icon` so Explorer no longer shows the default Java icon.
+- Rebuilt the Windows LAN app-image package for Release distribution.
+
 ## 0.1.0 - MVP
 
 - Added Maven multi-module project structure.

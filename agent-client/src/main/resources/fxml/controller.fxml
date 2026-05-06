@@ -67,6 +67,43 @@
                     <center>
                         <TabPane tabClosingPolicy="UNAVAILABLE" styleClass="workbench-tabs">
                             <tabs>
+                                <Tab text="AI 协助">
+                                    <BorderPane styleClass="tab-surface">
+                                        <top>
+                                            <VBox spacing="8">
+                                                <Label styleClass="section-title" text="直接给 AI 下达远程协助目标" />
+                                                <Label styleClass="muted-text" text="这里是协助方自己的输入框。点击后会在本机打开一个可见 PowerShell/Codex 会话，由它通过 relay-server 操作对方授权目录。" wrapText="true" />
+                                            </VBox>
+                                        </top>
+                                        <center>
+                                            <SplitPane dividerPositions="0.66" styleClass="inner-split">
+                                                <items>
+                                                    <VBox spacing="10">
+                                                        <TextArea fx:id="directAiRequestArea" promptText="例如：先看一下对方项目为什么启动失败，优先查看授权根目录、README、构建脚本和报错日志，再给出修复建议并尽量修好。" styleClass="chat-input-area" wrapText="true" VBox.vgrow="ALWAYS" />
+                                                        <HBox alignment="CENTER_LEFT" spacing="10">
+                                                            <Button fx:id="launchDirectAiButton" onAction="#launchDirectAiRequest" styleClass="primary-button" text="直接拉起 Codex" />
+                                                            <Button fx:id="importSelectedHelpRequestButton" onAction="#importSelectedHelpRequest" styleClass="ghost-button" text="导入当前审核需求" />
+                                                        </HBox>
+                                                        <Label fx:id="directAiStatusLabel" styleClass="value-text" text="连接远程设备后，可以直接在这里给 AI 下达远程协助目标。" wrapText="true" />
+                                                    </VBox>
+                                                    <VBox spacing="10">
+                                                        <VBox spacing="8" styleClass="inline-note">
+                                                            <Label styleClass="section-title" text="运行方式" />
+                                                            <Label styleClass="muted-text" text="它不会在当前界面里直接聊天，而是打开一个可见的 Codex 会话窗口，Prompt 中会带上 relay-server、sessionId 和 REST API 示例。" wrapText="true" />
+                                                        </VBox>
+                                                        <VBox spacing="8" styleClass="inline-note">
+                                                            <Label styleClass="section-title" text="适合直接输入的内容" />
+                                                            <Label styleClass="list-line-muted" text="排查为什么项目启动失败，并尽量修复。" wrapText="true" />
+                                                            <Label styleClass="list-line-muted" text="先浏览目录结构，再读取关键配置文件，然后总结问题。" wrapText="true" />
+                                                            <Label styleClass="list-line-muted" text="只检查，不修改；先给我结论和风险点。" wrapText="true" />
+                                                        </VBox>
+                                                    </VBox>
+                                                </items>
+                                            </SplitPane>
+                                        </center>
+                                    </BorderPane>
+                                </Tab>
+
                                 <Tab text="需求审核">
                                     <BorderPane styleClass="tab-surface">
                                         <top>
