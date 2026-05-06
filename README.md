@@ -195,12 +195,13 @@ It is rendered inside the application window, can be skipped, and does not creat
 
 ## Approved AI Runner
 
-The helper-side AI runner is defaulted to Codex CLI and is only launched after the helper approves a submitted request. It opens a visible PowerShell window and does not use dangerous bypass flags.
+The helper-side AI runner can now switch between `Codex` and `OpenClaw` from the helper UI. It is only launched after the helper approves a submitted request or clicks the direct AI entry, and it always opens as a visible PowerShell window without dangerous bypass flags.
 
 Optional environment variables:
 
 ```powershell
 $env:AIRH_AI_RUNNER_COMMAND='codex'
+$env:AIRH_AI_RUNNER_COMMAND='openclaw'
 $env:AIRH_AI_RUNNER_WORKDIR="$env:USERPROFILE\.ai-remote-helper\ai-runs"
 ```
 

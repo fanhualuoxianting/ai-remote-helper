@@ -128,7 +128,7 @@ Agent 客户端检测到 `localhost` 或 `127.0.0.1` 时会显示明显警告。
 3. 点击“连接远程设备”。
 4. 页面顶部状态条显示“已连接远程设备”后，快捷操作按钮会启用。
 5. “需求审核”标签页会自动刷新被协助方提交的自然语言需求。
-6. 点击“批准并拉起 Codex”后，本机会打开一个可见 PowerShell/Codex 会话，Prompt 中包含 relay-server、sessionId 和安全边界。
+6. 在 `AI Runner` 下拉框里选择 `Codex` 或 `OpenClaw` 后，点击“批准并启动 ...”会打开对应的可见 PowerShell AI 会话，Prompt 中包含 relay-server、sessionId 和安全边界。
 7. “文件浏览”分组可查看授权根目录、读取相对路径文件，例如 `pom.xml`。
 8. “命令执行”分组可输入命令、工作目录和超时时间，例如命令 `mvn test`、工作目录 `.`、超时 `30` 秒。
 9. “会话输出”分组可查看任务日志或生成中文报告。
@@ -136,22 +136,24 @@ Agent 客户端检测到 `localhost` 或 `127.0.0.1` 时会显示明显警告。
 
 正式 AI 调用仍应通过 `mcp-bridge`。控制端不会直接连接对方电脑执行命令，所有任务仍通过 `relay-server` 转发，并由 Agent 在授权目录和 safety 模块限制下执行。
 
-## 需求审核与 Codex Runner
+## 需求审核与 AI Runner
 
 第一版支持“需求级审批”：
 
 1. 被协助方在 Agent Client 的“提交需求”标签页输入需求。
 2. relay-server 将需求保存为 `PENDING` 状态。
 3. 协助方在“我要帮别人处理项目”的“需求审核”标签页查看需求。
-4. 协助方批准后，需求状态变为 `APPROVED`，客户端在协助方电脑上打开可见 PowerShell/Codex 会话。
-5. Codex Prompt 会优先要求 AI 把远程操作写成 JSON 任务文件，放到本地 AI 工作目录里的 `relay-task-requests`。
-6. 协助方回到客户端点击“执行下一条 AI 任务”，由 JavaFX 客户端用自己的 Java `HttpClient` 代为调用 relay-server。
-7. 提交结果会写回同一工作目录下的 `relay-task-results`，AI 可以继续读取结果再规划下一步。
+4. 协助方可以在 `AI 协助` 标签页选择 `Codex` 或 `OpenClaw` 作为当前 Runner。
+5. 协助方批准后，需求状态变为 `APPROVED`，客户端在协助方电脑上打开对应的可见 PowerShell AI 会话。
+6. AI Prompt 会优先要求 Runner 把远程操作写成 JSON 任务文件，放到本地 AI 工作目录里的 `relay-task-requests`。
+7. 协助方回到客户端点击“执行下一条 AI 任务”，由 JavaFX 客户端用自己的 Java `HttpClient` 代为调用 relay-server。
+8. 提交结果会写回同一工作目录下的 `relay-task-results`，AI 可以继续读取结果再规划下一步。
 
 可选配置：
 
 ```powershell
 $env:AIRH_AI_RUNNER_COMMAND='codex'
+$env:AIRH_AI_RUNNER_COMMAND='openclaw'
 $env:AIRH_AI_RUNNER_WORKDIR="$env:USERPROFILE\.ai-remote-helper\ai-runs"
 ```
 

@@ -2,6 +2,7 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.Tab?>
@@ -72,7 +73,12 @@
                                         <top>
                                             <VBox spacing="8">
                                                 <Label styleClass="section-title" text="直接给 AI 下达远程协助目标" />
-                                                <Label styleClass="muted-text" text="这里是协助方自己的输入框。点击后会在本机打开一个可见 PowerShell/Codex 会话，由它通过 relay-server 操作对方授权目录。" wrapText="true" />
+                                                <Label styleClass="muted-text" text="这里是协助方自己的输入框。点击后会在本机打开一个可见 PowerShell/AI Runner 会话，由它通过 relay-server 操作对方授权目录。" wrapText="true" />
+                                                <HBox alignment="CENTER_LEFT" spacing="10">
+                                                    <Label styleClass="field-name" text="AI Runner" />
+                                                    <ComboBox fx:id="aiRunnerComboBox" onAction="#handleRunnerSelectionChanged" prefWidth="160" />
+                                                    <Label fx:id="aiRunnerModeLabel" styleClass="value-text" text="当前 Runner：Codex" wrapText="true" />
+                                                </HBox>
                                             </VBox>
                                         </top>
                                         <center>
@@ -81,7 +87,7 @@
                                                     <VBox spacing="10">
                                                         <TextArea fx:id="directAiRequestArea" promptText="例如：先看一下对方项目为什么启动失败，优先查看授权根目录、README、构建脚本和报错日志，再给出修复建议并尽量修好。" styleClass="chat-input-area" wrapText="true" VBox.vgrow="ALWAYS" />
                                                         <HBox alignment="CENTER_LEFT" spacing="10">
-                                                            <Button fx:id="launchDirectAiButton" onAction="#launchDirectAiRequest" styleClass="primary-button" text="直接拉起 Codex" />
+                                                            <Button fx:id="launchDirectAiButton" onAction="#launchDirectAiRequest" styleClass="primary-button" text="启动 Codex" />
                                                             <Button fx:id="executeNextAiTaskButton" onAction="#executeNextAiTask" styleClass="success-button" text="执行下一条 AI 任务" />
                                                             <Button fx:id="openAiRunFolderButton" onAction="#openAiRunFolder" styleClass="ghost-button" text="打开 AI 工作目录" />
                                                             <Button fx:id="importSelectedHelpRequestButton" onAction="#importSelectedHelpRequest" styleClass="ghost-button" text="导入当前审核需求" />
@@ -91,7 +97,7 @@
                                                     <VBox spacing="10">
                                                         <VBox spacing="8" styleClass="inline-note">
                                                             <Label styleClass="section-title" text="运行方式" />
-                                                            <Label styleClass="muted-text" text="它不会在当前界面里直接聊天，而是打开一个可见的 Codex 会话窗口，Prompt 中会带上 relay-server、sessionId 和 REST API 示例。" wrapText="true" />
+                                                            <Label styleClass="muted-text" text="它不会在当前界面里直接聊天，而是打开一个可见的 AI Runner 会话窗口，Prompt 中会带上 relay-server、sessionId 和任务队列说明。" wrapText="true" />
                                                         </VBox>
                                                         <VBox spacing="8" styleClass="inline-note">
                                                             <Label styleClass="section-title" text="适合直接输入的内容" />
@@ -113,14 +119,14 @@
                                                 <HBox alignment="CENTER_LEFT" spacing="10">
                                                     <VBox spacing="4" HBox.hgrow="ALWAYS">
                                                         <Label styleClass="section-title" text="被协助方提交的需求" />
-                                                        <Label styleClass="muted-text" text="先审核需求；批准后会在本机打开可见 PowerShell/Codex 会话，不会隐藏执行。" wrapText="true" />
+                                                        <Label styleClass="muted-text" text="先审核需求；批准后会按当前 Runner 选择打开可见 AI 会话，不会隐藏执行。" wrapText="true" />
                                                     </VBox>
                                                     <Button fx:id="refreshHelpRequestsButton" onAction="#refreshHelpRequests" styleClass="ghost-button" text="刷新" />
                                                 </HBox>
                                                 <HBox alignment="CENTER_LEFT" spacing="10">
-                                                    <Button fx:id="approveHelpRequestButton" onAction="#approveSelectedHelpRequest" styleClass="success-button" text="批准并拉起 Codex" />
+                                                    <Button fx:id="approveHelpRequestButton" onAction="#approveSelectedHelpRequest" styleClass="success-button" text="批准并启动 Codex" />
                                                     <Button fx:id="rejectHelpRequestButton" onAction="#rejectSelectedHelpRequest" styleClass="danger-button" text="拒绝需求" />
-                                                    <Button fx:id="relaunchAiButton" onAction="#relaunchAiForSelectedHelpRequest" styleClass="warning-button" text="重新拉起 AI" />
+                                                    <Button fx:id="relaunchAiButton" onAction="#relaunchAiForSelectedHelpRequest" styleClass="warning-button" text="重新启动 AI" />
                                                 </HBox>
                                                 <Label fx:id="helpRequestReviewStatusLabel" styleClass="value-text" text="连接远程设备后自动刷新需求。" wrapText="true" />
                                             </VBox>

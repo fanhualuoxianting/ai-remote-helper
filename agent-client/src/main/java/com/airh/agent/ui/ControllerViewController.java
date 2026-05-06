@@ -8,6 +8,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -59,6 +60,8 @@ public class ControllerViewController {
     @FXML private TextArea directAiRequestArea;
     @FXML private Label errorLabel;
     @FXML private Label directAiStatusLabel;
+    @FXML private Label aiRunnerModeLabel;
+    @FXML private ComboBox<String> aiRunnerComboBox;
     @FXML private Button listRootButton;
     @FXML private Button readFileButton;
     @FXML private Button runCommandButton;
@@ -114,6 +117,7 @@ public class ControllerViewController {
         permissionsLabel.setText("读取文件、修改文件、执行命令受 Agent 授权目录和 safety 模块限制");
         errorLabel.setText("");
         directAiStatusLabel.setText("连接远程设备后，可以直接在这里给 AI 下达远程协助目标。");
+        initializeRunnerSelection();
         refreshTaskButtons();
         refreshHelpRequestButtons();
         appendLog("控制台已启动。请输入对方连接码，通过 relay-server 建立手动调试会话。");
@@ -221,20 +225,26 @@ public class ControllerViewController {
             return;
         }
         launchDirectAiButton.setDisable(true);
-        directAiStatusLabel.setText("正在拉起可见 Codex 会话...");
+        AiRunnerService.RunnerLaunchOptions runnerOptions = currentRunnerOptions();
+        directAiStatusLabel.setText("正在拉起可见 " + runnerOptions.displayName() + " 会话...");
         try {
-            AiRunnerService.AiLaunchSession launchSession = aiRunnerService.launchDirectAssist(baseRelayUrl(), sessionId, requestContent);
+            AiRunnerService.AiLaunchSession launchSession = aiRunnerService.launchDirectAssist(baseRelayUrl(), sessionId, requestContent, runnerOptions);
             activeAiLaunchSession = launchSession;
-            directAiStatusLabel.setText("Codex 已启动。让 AI 往任务队列写 JSON，然后点“执行下一条 AI 任务”。目录：" + launchSession.runDir());
-            appendLog("已直接拉起 Codex 处理当前远程会话");
+            directAiStatusLabel.setText(runnerOptions.displayName() + " 已启动。让 AI 往任务队列写 JSON，然后点“执行下一条 AI 任务”。目录：" + launchSession.runDir());
+            appendLog("已直接拉起 " + runnerOptions.displayName() + " 处理当前远程会话");
         } catch (IOException | RuntimeException exception) {
             String message = exception.getMessage() == null ? exception.toString() : exception.getMessage();
-            directAiStatusLabel.setText("拉起 Codex 失败：" + message);
-            showError("拉起 Codex 失败：" + message);
+            directAiStatusLabel.setText("拉起 " + runnerOptions.displayName() + " 失败：" + message);
+            showError("拉起 " + runnerOptions.displayName() + " 失败：" + message);
         } finally {
             launchDirectAiButton.setDisable(false);
             refreshHelpRequestButtons();
         }
+    }
+
+    @FXML
+    private void handleRunnerSelectionChanged() {
+        refreshRunnerSelectionUi();
     }
 
     @FXML
@@ -297,7 +307,7 @@ public class ControllerViewController {
             return;
         }
         directAiRequestArea.setText(content);
-        directAiStatusLabel.setText("已导入审核需求。你可以继续补充说明后再拉起 Codex。");
+        directAiStatusLabel.setText("已导入审核需求。你可以继续补充说明后再启动当前 AI Runner。");
     }
 
     @FXML
@@ -474,7 +484,7 @@ public class ControllerViewController {
                     if ("approve".equals(action)) {
                         try {
                             JsonNode approved = objectMapper.readTree(body);
-                            helpRequestReviewStatusLabel.setText("已批准，正在拉起 Codex...");
+                            helpRequestReviewStatusLabel.setText("已批准，正在启动 " + currentRunnerOptions().displayName() + "...");
                             launchAiForRequest(approved);
                         } catch (IOException exception) {
                             showError("解析批准响应失败：" + exception.getMessage());
@@ -491,17 +501,18 @@ public class ControllerViewController {
         String requestId = request.path("requestId").asText("");
         String content = request.path("content").asText("");
         try {
-            AiRunnerService.AiLaunchSession launchSession = aiRunnerService.launchCodex(requestId, baseRelayUrl(), sessionId, content);
+            AiRunnerService.RunnerLaunchOptions runnerOptions = currentRunnerOptions();
+            AiRunnerService.AiLaunchSession launchSession = aiRunnerService.launchCodex(requestId, baseRelayUrl(), sessionId, content, runnerOptions);
             activeAiLaunchSession = launchSession;
-            helpRequestReviewStatusLabel.setText("Codex 已启动。AI 可把任务写入队列，由客户端代为执行。");
+            helpRequestReviewStatusLabel.setText(runnerOptions.displayName() + " 已启动。AI 可把任务写入队列，由客户端代为执行。");
             directAiStatusLabel.setText("当前 AI 工作目录：" + launchSession.runDir() + "。等待 AI 写入任务 JSON。");
             sendPost("/api/sessions/" + sessionId + "/help-requests/" + requestId + "/ai-launched",
-                    Map.of("reviewerNote", "Codex prompt: " + launchSession.promptPath()))
+                    Map.of("reviewerNote", runnerOptions.displayName() + " prompt: " + launchSession.promptPath()))
                     .thenAccept(ignored -> Platform.runLater(this::refreshHelpRequests))
                     .exceptionally(this::showAsyncError);
-            appendLog("已为需求拉起 Codex：" + requestId);
+            appendLog("已为需求拉起 " + runnerOptions.displayName() + "：" + requestId);
         } catch (IOException | RuntimeException exception) {
-            helpRequestReviewStatusLabel.setText("拉起 Codex 失败：" + exception.getMessage());
+            helpRequestReviewStatusLabel.setText("拉起 " + currentRunnerOptions().displayName() + " 失败：" + exception.getMessage());
             sendPost("/api/sessions/" + sessionId + "/help-requests/" + requestId + "/ai-launch-failed",
                     Map.of("reviewerNote", exception.getMessage() == null ? exception.toString() : exception.getMessage()))
                     .thenAccept(ignored -> Platform.runLater(this::refreshHelpRequests))
@@ -600,6 +611,40 @@ public class ControllerViewController {
 
     private void clearError() {
         errorLabel.setText("");
+    }
+
+    private void initializeRunnerSelection() {
+        if (aiRunnerComboBox == null) {
+            return;
+        }
+        aiRunnerComboBox.getItems().setAll("Codex", "OpenClaw");
+        AiRunnerService.RunnerLaunchOptions defaults = aiRunnerService.defaultLaunchOptions();
+        aiRunnerComboBox.setValue(defaults.runnerType() == AiRunnerService.RunnerType.OPENCLAW ? "OpenClaw" : "Codex");
+        refreshRunnerSelectionUi();
+    }
+
+    private void refreshRunnerSelectionUi() {
+        String runnerName = currentRunnerOptions().displayName();
+        if (aiRunnerModeLabel != null) {
+            aiRunnerModeLabel.setText("当前 Runner：" + runnerName);
+        }
+        if (launchDirectAiButton != null) {
+            launchDirectAiButton.setText("启动 " + runnerName);
+        }
+        if (approveHelpRequestButton != null) {
+            approveHelpRequestButton.setText("批准并启动 " + runnerName);
+        }
+        if (relaunchAiButton != null) {
+            relaunchAiButton.setText("重新启动 " + runnerName);
+        }
+    }
+
+    private AiRunnerService.RunnerLaunchOptions currentRunnerOptions() {
+        String selected = aiRunnerComboBox == null ? null : aiRunnerComboBox.getValue();
+        if ("OpenClaw".equals(selected)) {
+            return new AiRunnerService.RunnerLaunchOptions(AiRunnerService.RunnerType.OPENCLAW, "openclaw");
+        }
+        return new AiRunnerService.RunnerLaunchOptions(AiRunnerService.RunnerType.CODEX, "codex");
     }
 
     private String pretty(String json) {

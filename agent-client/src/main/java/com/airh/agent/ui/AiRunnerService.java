@@ -8,35 +8,78 @@ import java.time.Instant;
 import java.util.Locale;
 
 public class AiRunnerService {
-    private static final String DEFAULT_RUNNER = "codex";
+    public enum RunnerType {
+        CODEX("Codex", "codex"),
+        OPENCLAW("OpenClaw", "openclaw");
+
+        private final String displayName;
+        private final String command;
+
+        RunnerType(String displayName, String command) {
+            this.displayName = displayName;
+            this.command = command;
+        }
+
+        public String displayName() {
+            return displayName;
+        }
+
+        public String command() {
+            return command;
+        }
+
+        public static RunnerType fromCommand(String value) {
+            if (value == null || value.isBlank()) {
+                return CODEX;
+            }
+            String normalized = value.strip().toLowerCase(Locale.ROOT);
+            if (normalized.contains("openclaw")) {
+                return OPENCLAW;
+            }
+            return CODEX;
+        }
+    }
+
+    public record RunnerLaunchOptions(RunnerType runnerType, String command) {
+        public String displayName() {
+            return runnerType.displayName();
+        }
+    }
+
+    private static final RunnerType DEFAULT_RUNNER = RunnerType.CODEX;
 
     public record AiLaunchSession(Path runDir, Path promptPath, Path requestQueueDir, Path resultQueueDir) {
     }
 
-    public AiLaunchSession launchCodex(String requestId, String relayUrl, String sessionId, String requestContent) throws IOException {
+    public AiLaunchSession launchCodex(String requestId, String relayUrl, String sessionId, String requestContent,
+                                       RunnerLaunchOptions runnerLaunchOptions) throws IOException {
         return launchRequest(
                 requestId,
                 relayUrl,
                 sessionId,
                 requestContent,
                 "# AI Remote Helper Approved Request",
-                "## 被协助方需求"
+                "## 被协助方需求",
+                runnerLaunchOptions
         );
     }
 
-    public AiLaunchSession launchDirectAssist(String relayUrl, String sessionId, String requestContent) throws IOException {
+    public AiLaunchSession launchDirectAssist(String relayUrl, String sessionId, String requestContent,
+                                              RunnerLaunchOptions runnerLaunchOptions) throws IOException {
         return launchRequest(
                 "direct-" + Instant.now().toEpochMilli(),
                 relayUrl,
                 sessionId,
                 requestContent,
                 "# AI Remote Helper Direct Assist Request",
-                "## 协助方直接输入的需求"
+                "## 协助方直接输入的需求",
+                runnerLaunchOptions
         );
     }
 
     private AiLaunchSession launchRequest(String requestId, String relayUrl, String sessionId, String requestContent,
-                                          String title, String requestHeading) throws IOException {
+                                          String title, String requestHeading, RunnerLaunchOptions runnerLaunchOptions) throws IOException {
+        RunnerLaunchOptions resolvedRunner = runnerLaunchOptions == null ? defaultLaunchOptions() : runnerLaunchOptions;
         Path runDir = resolveRunDir(requestId);
         Path requestQueueDir = runDir.resolve("relay-task-requests");
         Path resultQueueDir = runDir.resolve("relay-task-results");
@@ -44,9 +87,9 @@ public class AiRunnerService {
         Files.createDirectories(requestQueueDir);
         Files.createDirectories(resultQueueDir);
         Path promptPath = runDir.resolve("approved-request-prompt.md");
-        Path scriptPath = runDir.resolve("start-codex.ps1");
-        Files.writeString(promptPath, buildPrompt(relayUrl, sessionId, requestContent, title, requestHeading, requestQueueDir, resultQueueDir), StandardCharsets.UTF_8);
-        Files.writeString(scriptPath, buildScript(promptPath, runDir), StandardCharsets.UTF_8);
+        Path scriptPath = runDir.resolve("start-ai-runner.ps1");
+        Files.writeString(promptPath, buildPrompt(relayUrl, sessionId, requestContent, title, requestHeading, requestQueueDir, resultQueueDir, resolvedRunner), StandardCharsets.UTF_8);
+        Files.writeString(scriptPath, buildScript(promptPath, runDir, resolvedRunner), StandardCharsets.UTF_8);
         Files.writeString(runDir.resolve("QUEUE_README.md"), buildQueueReadme(requestQueueDir, resultQueueDir), StandardCharsets.UTF_8);
 
         ProcessBuilder processBuilder = new ProcessBuilder(
@@ -74,27 +117,39 @@ public class AiRunnerService {
         return root.resolve(safeName(requestId));
     }
 
-    private String buildScript(Path promptPath, Path runDir) {
+    public RunnerLaunchOptions defaultLaunchOptions() {
         String runner = System.getenv("AIRH_AI_RUNNER_COMMAND");
         if (runner == null || runner.isBlank()) {
-            runner = DEFAULT_RUNNER;
+            runner = DEFAULT_RUNNER.command();
         }
+        return new RunnerLaunchOptions(RunnerType.fromCommand(runner), runner);
+    }
+
+    private String buildScript(Path promptPath, Path runDir, RunnerLaunchOptions runnerLaunchOptions) {
+        String invokeBlock = runnerLaunchOptions.runnerType() == RunnerType.OPENCLAW
+                ? "& $runner tui --local --message $prompt"
+                : "& $runner -C $workDir --ask-for-approval on-request $prompt";
         return """
                 $ErrorActionPreference = 'Stop'
                 $runner = '%s'
+                $runnerName = '%s'
                 $promptPath = '%s'
                 $workDir = '%s'
                 Write-Host '[AI Remote Helper] Approved request prompt:' $promptPath -ForegroundColor Cyan
                 Write-Host '[AI Remote Helper] Work directory:' $workDir -ForegroundColor Cyan
-                Write-Host '[AI Remote Helper] Launching visible Codex session. Dangerous bypass flags are not used.' -ForegroundColor Green
+                Write-Host ('[AI Remote Helper] Launching visible ' + $runnerName + ' session. Dangerous bypass flags are not used.') -ForegroundColor Green
                 $prompt = Get-Content -LiteralPath $promptPath -Raw
-                & $runner -C $workDir --ask-for-approval on-request $prompt
-                """.formatted(escapePowerShellSingleQuoted(runner), escapePowerShellSingleQuoted(promptPath.toString()),
-                escapePowerShellSingleQuoted(runDir.toString()));
+                %s
+                """.formatted(
+                escapePowerShellSingleQuoted(runnerLaunchOptions.command()),
+                escapePowerShellSingleQuoted(runnerLaunchOptions.displayName()),
+                escapePowerShellSingleQuoted(promptPath.toString()),
+                escapePowerShellSingleQuoted(runDir.toString()),
+                invokeBlock);
     }
 
     private String buildPrompt(String relayUrl, String sessionId, String requestContent, String title, String requestHeading,
-                               Path requestQueueDir, Path resultQueueDir) {
+                               Path requestQueueDir, Path resultQueueDir, RunnerLaunchOptions runnerLaunchOptions) {
         return """
                 %s
 
@@ -108,13 +163,14 @@ public class AiRunnerService {
 
                 - relay-server: `%s`
                 - sessionId: `%s`
+                - 当前 AI Runner：`%s`
                 - AI 任务请求目录：`%s`
                 - AI 任务结果目录：`%s`
 
                 ## 你的首选执行方式
 
                 不要优先自己去调用 relay-server REST API。
-                这台机器上的可见 Codex 子进程可能遇到 WinSock 10106，导致 `curl` 或 `Invoke-RestMethod` 失败。
+                这台机器上的可见 AI 子进程可能遇到 WinSock 10106，导致 `curl` 或 `Invoke-RestMethod` 失败。
                 你应该优先把要执行的远程任务写成 JSON 文件，交给 AI Remote Helper 客户端代为提交。
 
                 协作规则：
@@ -168,7 +224,7 @@ public class AiRunnerService {
                 - 遇到高风险命令、删除、覆盖、大规模改动时，先向协助者说明风险并等待确认。
                 - 每次操作后尽量通过任务日志或任务结果确认实际效果。
                 """.formatted(title, requestHeading, requestContent, relayUrl, sessionId,
-                requestQueueDir, resultQueueDir, relayUrl, relayUrl, sessionId, relayUrl, relayUrl);
+                runnerLaunchOptions.displayName(), requestQueueDir, resultQueueDir, relayUrl, relayUrl, sessionId, relayUrl, relayUrl);
     }
 
     private String buildQueueReadme(Path requestQueueDir, Path resultQueueDir) {
