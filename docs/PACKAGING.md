@@ -1,83 +1,68 @@
-# AI Remote Helper 打包文档
+# AI Remote Helper - Packaging Guide
 
-## 前置条件
+## Windows 打包
 
-- Java 21+ (推荐使用 Temurin)
+### 前置条件
+
+- Java 21+（JDK，不是 JRE）
 - JAVA_HOME 环境变量已设置
-- Windows 操作系统
+- Maven 项目已构建过至少一次
 
-## 打包步骤
-
-### 使用 PowerShell 脚本
+### 打包步骤
 
 ```powershell
-cd E:\openclaw-project\ai-remote-helper
-.\scripts\package-agent.ps1
+git clone https://github.com/<your-name>/ai-remote-helper.git
+cd ai-remote-helper
+scripts\package-windows.bat
 ```
 
-### 使用 Batch 脚本
+### 打包产物
 
-```cmd
-cd E:\openclaw-project\ai-remote-helper
-.\scripts\package-agent.bat
+```
+dist/
+├── AI-Remote-Helper.bat          ← 双击启动
+├── agent-client-all.jar          ← 20MB fat jar
+└── javafx-sdk/
+    └── lib/
+        ├── javafx-base-21.0.5.jar
+        ├── javafx-base-21.0.5-win.jar
+        ├── javafx-controls-21.0.5.jar
+        ├── javafx-controls-21.0.5-win.jar
+        ├── javafx-graphics-21.0.5.jar
+        └── javafx-graphics-21.0.5-win.jar
 ```
 
-### 手动打包
+### 用户安装方式
 
-```powershell
-# 1. 构建项目
-.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package -DskipTests
+1. 下载 dist 文件夹（或 zip 压缩包）
+2. 解压到任意目录
+3. 确保系统安装了 Java 21 且 JAVA_HOME 已设置
+4. 双击 `AI-Remote-Helper.bat`
 
-# 2. 使用 jpackage 打包
-$env:JAVA_HOME = "D:\jdk-21.0.9.10-hotspot"
-& "$env:JAVA_HOME\bin\jpackage.exe" `
-    --type app-image `
-    --name "AI-Remote-Helper-Agent" `
-    --input "agent-client\target" `
-    --main-jar "agent-client-0.1.0-SNAPSHOT.jar" `
-    --main-class "com.airh.agent.AgentClientApplication" `
-    --dest "dist" `
-    --java-options "--add-opens javafx.graphics/com.sun.javafx.application=ALL-UNNAMED" `
-    --java-options "--add-opens javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED" `
-    --java-options "--add-opens javafx.fxml/com.sun.javafx.fxml=ALL-UNNAMED"
-```
+### 用户不需要
 
-## 输出产物
+- git clone
+- 安装 JDK（只要有 Java 21 runtime）
+- 运行 Maven
+- 配置域名或服务器
 
-打包完成后，在 `dist/AI-Remote-Helper-Agent` 目录下会生成：
+### 已知限制
 
-- `AI-Remote-Helper-Agent.exe` - 可执行文件
-- `runtime/` - Java 运行时
-- `app/` - 应用程序 jar 文件
+- 当前版本需要 Java 21 已安装在目标机器上
+- 未来版本将使用 jpackage 打包自包含 exe（含 Java runtime）
+- 当前不支持开机自启（设计如此）
+- 当前不支持静默安装
 
-## 运行打包产物
+### 安全说明
 
-```powershell
-cd dist\AI-Remote-Helper-Agent
-.\AI-Remote-Helper-Agent.exe
-```
+- 不会开机自启
+- 不会注册系统服务
+- 不会请求管理员权限
+- 不会修改防火墙
+- 所有操作在用户授权目录内进行
 
-## 常见问题
+### 后续计划
 
-### jpackage 找不到
-
-确保 JAVA_HOME 指向 JDK 14+，而不是 JRE。
-
-### JavaFX 模块错误
-
-确保使用 `--add-opens` 参数打开 JavaFX 模块。
-
-### 打包失败
-
-检查是否所有依赖都已正确下载：
-
-```powershell
-.\.tools\apache-maven-3.9.9\bin\mvn.cmd dependency:resolve
-```
-
-## 后续规划
-
-- macOS 支持：使用 `--type dmg` 或 `--type pkg`
-- Linux 支持：使用 `--type deb` 或 `--type rpm`
-- 图标设置：使用 `--icon` 参数
-- 安装程序：使用 `--type msi` 生成 Windows 安装程序
+- jpackage 自包含 exe（不需要用户安装 Java）
+- Inno Setup / NSIS 安装包
+- GitHub Releases 发布

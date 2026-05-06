@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane fx:id="root" styleClass="app-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.airh.agent.ui.RoleSelectController">
+    <center>
+        <StackPane>
+            <VBox alignment="CENTER" maxWidth="860" spacing="28">
+                <VBox alignment="CENTER" spacing="10">
+                    <Label styleClass="app-title" text="AI Remote Helper" />
+                    <Label styleClass="app-subtitle" text="面向 AI 编程工具的授权远程开发协助工具" />
+                </VBox>
+                <HBox alignment="CENTER" spacing="18">
+                    <Button onAction="#openAssistedView" prefHeight="178" prefWidth="360" styleClass="role-card-button" text="我需要别人帮忙&#10;&#10;选择我的项目文件夹，把连接码发给可信协助者。所有操作都会显示在本机窗口里。" wrapText="true" />
+                    <Button onAction="#openControllerView" prefHeight="178" prefWidth="360" styleClass="role-card-button" text="我要帮别人处理项目&#10;&#10;输入对方给的连接码，连接其授权目录，手动验证文件、命令和日志。" wrapText="true" />
+                </HBox>
+                <HBox alignment="TOP_CENTER" spacing="18">
+                    <VBox spacing="8" styleClass="usage-note" prefWidth="360">
+                        <Label styleClass="section-title" text="被协助者怎么用" />
+                        <Label styleClass="muted-text" text="1. 选择要被协助的项目目录&#10;2. 填写协助者电脑的局域网 IP 并连接&#10;3. 把大号连接码发给协助者，随时可断开" wrapText="true" />
+                    </VBox>
+                    <VBox spacing="8" styleClass="usage-note" prefWidth="360">
+                        <Label styleClass="section-title" text="协助者怎么用" />
+                        <Label styleClass="muted-text" text="1. 启动 relay-server 并确认局域网可访问&#10;2. 输入对方提供的连接码&#10;3. 只在对方授权目录内查看文件、执行命令、生成报告" wrapText="true" />
+                    </VBox>
+                </HBox>
+            </VBox>
+            <padding>
+                <Insets bottom="36" left="36" right="36" top="36" />
+            </padding>
+        </StackPane>
+    </center>
+</BorderPane>

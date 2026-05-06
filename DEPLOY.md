@@ -22,6 +22,8 @@ docker run -d --name my-postgres `
   postgres:17
 ```
 
+上面的 `postgres/postgres` 只适合本地开发示例，生产或共享网络部署必须改成独立强密码并通过安全配置注入。
+
 ### Redis
 
 ```powershell
@@ -34,8 +36,9 @@ docker run -d --name my-redis `
 ## 构建项目
 
 ```powershell
-cd E:\openclaw-project\ai-remote-helper
-.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package
+git clone https://github.com/<your-name>/ai-remote-helper.git
+cd ai-remote-helper
+mvn clean package
 ```
 
 ## 启动服务
@@ -43,7 +46,7 @@ cd E:\openclaw-project\ai-remote-helper
 ### 1. 启动 Relay Server
 
 ```powershell
-.\.tools\apache-maven-3.9.9\bin\mvn.cmd -f relay-server\pom.xml spring-boot:run
+mvn -f relay-server/pom.xml spring-boot:run
 ```
 
 Relay Server 默认运行在端口 8080。
@@ -51,7 +54,7 @@ Relay Server 默认运行在端口 8080。
 ### 2. 启动 Agent Client
 
 ```powershell
-.\.tools\apache-maven-3.9.9\bin\mvn.cmd -f agent-client\pom.xml javafx:run
+mvn -f agent-client/pom.xml javafx:run
 ```
 
 Agent Client 启动后需要：
@@ -62,7 +65,7 @@ Agent Client 启动后需要：
 ### 3. 启动 MCP Bridge
 
 ```powershell
-.\.tools\apache-maven-3.9.9\bin\mvn.cmd -f mcp-bridge\pom.xml spring-boot:run
+mvn -f mcp-bridge/pom.xml spring-boot:run
 ```
 
 MCP Bridge 默认运行在端口 9090。
@@ -87,9 +90,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:15432/testdb
-    username: postgres
-    password: postgres
+    url: ${AIRH_DATASOURCE_URL:jdbc:postgresql://localhost:15432/testdb}
+    username: ${AIRH_DATASOURCE_USERNAME:postgres}
+    password: ${AIRH_DATASOURCE_PASSWORD:postgres}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -98,8 +101,18 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 16379
+      host: ${AIRH_REDIS_HOST:localhost}
+      port: ${AIRH_REDIS_PORT:16379}
+```
+
+生产或共享网络部署建议通过环境变量覆盖：
+
+```powershell
+$env:AIRH_DATASOURCE_URL='jdbc:postgresql://db-host:5432/airh'
+$env:AIRH_DATASOURCE_USERNAME='airh'
+$env:AIRH_DATASOURCE_PASSWORD='<strong-password>'
+$env:AIRH_REDIS_HOST='redis-host'
+$env:AIRH_REDIS_PORT='6379'
 ```
 
 ## 打包 Agent 客户端

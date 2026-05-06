@@ -1,6 +1,7 @@
 package com.airh.agent.executor;
 
 import com.airh.agent.filesystem.FileSystemService;
+import com.airh.agent.report.ReportGenerationService;
 import com.airh.protocol.dto.TaskResultMessage;
 import com.airh.protocol.enums.RiskLevel;
 import com.airh.protocol.enums.TaskStatus;
@@ -14,6 +15,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,11 +28,13 @@ public class TaskExecutor implements AutoCloseable {
     private final ObjectMapper objectMapper;
     private final BiConsumer<String, String> taskLogSink;
     private final CommandRiskDetector commandRiskDetector;
+    private final Path authorizedDirectory;
 
     public TaskExecutor(FileSystemService fileSystemService, CommandExecutionService commandExecutionService,
-                        BiConsumer<String, String> taskLogSink) {
+                        Path authorizedDirectory, BiConsumer<String, String> taskLogSink) {
         this.fileSystemService = Objects.requireNonNull(fileSystemService, "fileSystemService must not be null");
         this.commandExecutionService = Objects.requireNonNull(commandExecutionService, "commandExecutionService must not be null");
+        this.authorizedDirectory = Objects.requireNonNull(authorizedDirectory, "authorizedDirectory must not be null");
         this.taskLogSink = Objects.requireNonNull(taskLogSink, "taskLogSink must not be null");
         this.commandRiskDetector = new CommandRiskDetector();
         this.executorService = Executors.newFixedThreadPool(2, runnable -> {
@@ -58,6 +62,7 @@ public class TaskExecutor implements AutoCloseable {
                 case WRITE_FILE -> executeWriteFile(taskId, sessionId, relativePath, extractText(payload, "content", "text"));
                 case APPLY_PATCH -> executeApplyPatch(taskId, sessionId, relativePath, extractText(payload, "patch", "diff"));
                 case RUN_COMMAND -> executeRunCommand(taskId, sessionId, payload);
+                case GENERATE_REPORT -> executeGenerateReport(taskId, sessionId);
                 default -> unsupported(taskId, sessionId, taskType);
             };
         } catch (Exception exception) {
@@ -199,8 +204,19 @@ public class TaskExecutor implements AutoCloseable {
                 "", null, Instant.now());
     }
 
+    private TaskResultMessage executeGenerateReport(String taskId, String sessionId) throws JsonProcessingException, java.io.IOException {
+        taskLogSink.accept(taskId, "AI 请求生成会话报告");
+        ReportGenerationService reportService = new ReportGenerationService();
+        Path reportPath = reportService.saveReport(authorizedDirectory, reportService.generateReport(authorizedDirectory));
+        String summary = "报告生成成功：" + reportPath;
+        taskLogSink.accept(taskId, summary);
+        return new TaskResultMessage(taskId, sessionId, TaskStatus.SUCCESS, summary,
+                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(Map.of("reportPath", reportPath.toString())),
+                "", null, Instant.now());
+    }
+
     private TaskResultMessage unsupported(String taskId, String sessionId, TaskType taskType) {
-        String message = "Phase 07 支持 LIST_DIR、READ_FILE、WRITE_FILE、APPLY_PATCH 和 RUN_COMMAND，当前任务暂不执行：" + taskType;
+        String message = "当前任务暂不执行：" + taskType;
         taskLogSink.accept(taskId, message);
         return new TaskResultMessage(taskId, sessionId, TaskStatus.FAILED,
                 "不支持的任务类型", "", "", message, Instant.now());

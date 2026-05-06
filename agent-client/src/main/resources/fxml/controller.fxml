@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane fx:id="root" styleClass="embedded-page" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.airh.agent.ui.ControllerViewController">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="16" styleClass="compact-header">
+            <VBox spacing="3" HBox.hgrow="ALWAYS">
+                <Label styleClass="page-title" text="我要帮别人处理项目" />
+                <Label styleClass="section-caption" text="连接远程设备，浏览授权目录，执行命令并查看结果。" />
+            </VBox>
+            <Label styleClass="field-name" text="当前状态" />
+            <Label fx:id="topStatusLabel" styleClass="status-pill" text="未连接远程设备" />
+            <Label styleClass="mode-pill" text="LAN Mode" />
+            <Label fx:id="errorLabel" styleClass="danger-text" wrapText="true" />
+            <padding>
+                <Insets bottom="16" left="24" right="24" top="18" />
+            </padding>
+        </HBox>
+    </top>
+
+    <center>
+        <SplitPane dividerPositions="0.22,0.75" styleClass="workspace-split">
+            <items>
+                <VBox spacing="12" minWidth="280" prefWidth="290" styleClass="workspace-side">
+                    <VBox spacing="10" styleClass="panel">
+                        <Label styleClass="section-title" text="连接与会话" />
+                        <Label styleClass="field-name" text="relay-server" />
+                        <TextField fx:id="relayUrlField" text="http://localhost:8080" />
+                        <Label styleClass="field-name" text="连接码" />
+                        <TextField fx:id="connectionCodeField" promptText="输入对方连接码" styleClass="code-input" />
+                        <Button fx:id="connectRemoteButton" maxWidth="Infinity" onAction="#connectRemoteDevice" styleClass="success-button" text="连接远程设备" />
+                    </VBox>
+
+                    <VBox spacing="9" styleClass="panel">
+                        <Label styleClass="section-title" text="会话摘要" />
+                        <Label styleClass="field-name" text="sessionId" />
+                        <Label fx:id="sessionIdLabel" styleClass="value-text" text="未连接" wrapText="true" />
+                        <Label styleClass="field-name" text="设备状态" />
+                        <Label fx:id="deviceStatusLabel" styleClass="status-pill" text="未连接" />
+                        <Label styleClass="field-name" text="当前授权" />
+                        <Label styleClass="value-text" text="由对方 Agent 授权目录限制" wrapText="true" />
+                    </VBox>
+
+                    <VBox spacing="9" styleClass="panel">
+                        <Label styleClass="section-title" text="快速提示" />
+                        <Label styleClass="muted-text" text="先连接远程设备，再在中间工作台选择文件、命令、输出或报告。所有任务仍由 relay-server 转发。" wrapText="true" />
+                    </VBox>
+                    <Region VBox.vgrow="ALWAYS" />
+                </VBox>
+
+                <BorderPane minWidth="520" styleClass="workspace-main">
+                    <center>
+                        <TabPane tabClosingPolicy="UNAVAILABLE" styleClass="workbench-tabs">
+                            <tabs>
+                                <Tab text="文件浏览">
+                                    <BorderPane styleClass="tab-surface">
+                                        <top>
+                                            <VBox spacing="10">
+                                                <HBox spacing="10">
+                                                    <TextField fx:id="listDirPathField" promptText="目录路径，默认 ." text="." HBox.hgrow="ALWAYS" />
+                                                    <Button fx:id="debugListDirButton" onAction="#listDir" styleClass="primary-button" text="刷新目录" />
+                                                    <Button fx:id="listRootButton" onAction="#listRootDir" styleClass="ghost-button" text="查看授权根目录" />
+                                                </HBox>
+                                                <HBox spacing="10">
+                                                    <TextField fx:id="readFilePathField" promptText="文件路径，例如 pom.xml" HBox.hgrow="ALWAYS" />
+                                                    <Button fx:id="readFileButton" onAction="#readFile" styleClass="primary-button" text="读取文件" />
+                                                </HBox>
+                                            </VBox>
+                                        </top>
+                                        <center>
+                                            <VBox alignment="CENTER" spacing="12" styleClass="empty-state">
+                                                <Label styleClass="empty-icon" text="FILES" />
+                                                <Label styleClass="empty-title" text="暂无文件列表" />
+                                                <Label maxWidth="420" styleClass="muted-text" text="连接远程设备后，点击“查看授权根目录”获取对方授权目录内容；文件读取结果会同步显示到任务输出。" textAlignment="CENTER" wrapText="true" />
+                                                <HBox alignment="CENTER" spacing="10">
+                                                    <Button onAction="#listRootDir" styleClass="primary-button" text="查看授权目录" />
+                                                    <Button onAction="#listDir" styleClass="ghost-button" text="刷新" />
+                                                </HBox>
+                                            </VBox>
+                                        </center>
+                                    </BorderPane>
+                                </Tab>
+
+                                <Tab text="命令执行">
+                                    <BorderPane styleClass="tab-surface">
+                                        <top>
+                                            <GridPane hgap="10" vgap="10">
+                                                <Label styleClass="field-name" text="命令" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                                                <TextField fx:id="commandField" promptText="例如 mvn test" GridPane.columnIndex="1" GridPane.columnSpan="3" GridPane.rowIndex="0" />
+                                                <Label styleClass="field-name" text="工作目录" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                                                <TextField fx:id="commandCwdField" promptText="默认 ." text="." GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                                <Label styleClass="field-name" text="超时" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+                                                <TextField fx:id="timeoutField" prefWidth="90" promptText="秒" text="30" GridPane.columnIndex="3" GridPane.rowIndex="1" />
+                                                <Button fx:id="runCommandButton" onAction="#runCommand" styleClass="warning-button" text="执行命令" GridPane.columnIndex="4" GridPane.rowIndex="1" />
+                                            </GridPane>
+                                        </top>
+                                        <center>
+                                            <TextArea editable="false" promptText="命令结果会在“任务输出”标签页刷新；任务日志可在“任务输出”标签页查看。" styleClass="terminal-area" wrapText="true" />
+                                        </center>
+                                    </BorderPane>
+                                </Tab>
+
+                                <Tab text="任务输出">
+                                    <BorderPane styleClass="tab-surface">
+                                        <top>
+                                            <HBox spacing="10">
+                                                <TextField fx:id="logsTaskIdField" promptText="任务 ID，执行任务后自动填入" HBox.hgrow="ALWAYS" />
+                                                <Button fx:id="getLogsButton" onAction="#getLogs" styleClass="primary-button" text="查看任务日志" />
+                                                <Button fx:id="generateReportButton" onAction="#generateReport" styleClass="ghost-button" text="生成报告" />
+                                            </HBox>
+                                        </top>
+                                        <center>
+                                            <TextArea fx:id="taskResultArea" editable="false" promptText="远程任务返回结果。" styleClass="mono-area" wrapText="true" />
+                                        </center>
+                                    </BorderPane>
+                                </Tab>
+
+                                <Tab text="报告">
+                                    <BorderPane styleClass="tab-surface">
+                                        <top>
+                                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                                <Label styleClass="section-title" text="报告预览" />
+                                                <Region HBox.hgrow="ALWAYS" />
+                                                <Button onAction="#generateReport" styleClass="primary-button" text="生成 report.md" />
+                                            </HBox>
+                                        </top>
+                                        <center>
+                                            <TextArea editable="false" promptText="报告生成后，结果路径会显示在任务输出中。这里预留 Markdown 报告预览区域。" styleClass="mono-area" wrapText="true" />
+                                        </center>
+                                    </BorderPane>
+                                </Tab>
+                            </tabs>
+                        </TabPane>
+                    </center>
+                </BorderPane>
+
+                <VBox spacing="12" minWidth="300" prefWidth="320" styleClass="workspace-side">
+                    <VBox spacing="8" styleClass="summary-card">
+                        <Label styleClass="section-title" text="远程设备信息" />
+                        <Label fx:id="notConnectedHint" styleClass="muted-text" text="请先输入连接码连接远程设备。" wrapText="true" />
+                        <Label styleClass="field-name" text="deviceId" />
+                        <Label fx:id="deviceIdLabel" styleClass="value-text" text="-" wrapText="true" />
+                        <Label styleClass="field-name" text="授权目录" />
+                        <Label fx:id="remoteDirectoryLabel" styleClass="value-text" text="-" wrapText="true" />
+                    </VBox>
+
+                    <VBox spacing="8" styleClass="summary-card">
+                        <Label styleClass="section-title" text="授权能力" />
+                        <Label fx:id="permissionsLabel" styleClass="value-text" wrapText="true" />
+                        <Label styleClass="safe-line" text="读文件 / 写文件 / 执行命令均受授权目录限制" wrapText="true" />
+                    </VBox>
+
+                    <VBox spacing="8" styleClass="summary-card">
+                        <Label styleClass="section-title" text="任务日志摘要" />
+                        <TextArea fx:id="taskLogsArea" editable="false" prefRowCount="9" promptText="连接和任务日志会显示在这里。" styleClass="mono-area" wrapText="true" />
+                    </VBox>
+
+                    <VBox spacing="8" styleClass="summary-card">
+                        <Label styleClass="section-title" text="风险提示" />
+                        <Label styleClass="safe-line" text="仅访问对方授权目录，所有操作对被协助者可见，可随时断开。" wrapText="true" />
+                    </VBox>
+                </VBox>
+            </items>
+            <BorderPane.margin>
+                <Insets bottom="12" left="24" right="24" top="0" />
+            </BorderPane.margin>
+        </SplitPane>
+    </center>
+
+    <bottom>
+        <TitledPane expanded="false" text="高级调试（API 风格）">
+            <GridPane hgap="10" vgap="10" styleClass="debug-pane">
+                <Label styleClass="muted-text" text="保留原始调试入口，仅用于开发排障。" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                <Button fx:id="debugGetLogsButton" onAction="#getLogs" text="get_logs" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+            </GridPane>
+            <BorderPane.margin>
+                <Insets bottom="18" left="24" right="24" top="0" />
+            </BorderPane.margin>
+        </TitledPane>
+    </bottom>
+</BorderPane>

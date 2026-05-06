@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane styleClass="embedded-page" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+    <top>
+        <VBox spacing="4" styleClass="compact-header">
+            <Label styleClass="page-title" text="设置" />
+            <Label styleClass="section-caption" text="配置本地连接、日志显示和调试选项；不新增公网、后台运行或绕过授权能力。" wrapText="true" />
+            <padding>
+                <Insets bottom="16" left="24" right="24" top="18" />
+            </padding>
+        </VBox>
+    </top>
+
+    <center>
+        <VBox spacing="16" styleClass="info-page-body">
+            <GridPane hgap="16" vgap="16">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="ALWAYS" percentWidth="50" />
+                    <ColumnConstraints hgrow="ALWAYS" percentWidth="50" />
+                </columnConstraints>
+                <rowConstraints>
+                    <RowConstraints vgrow="NEVER" />
+                    <RowConstraints vgrow="NEVER" />
+                    <RowConstraints percentHeight="100" vgrow="ALWAYS" />
+                </rowConstraints>
+
+                <VBox maxWidth="Infinity" spacing="12" styleClass="panel" GridPane.columnIndex="0" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0">
+                    <Label styleClass="section-title" text="连接设置" />
+                    <GridPane hgap="12" vgap="10">
+                        <Label styleClass="field-name" text="当前连接模式" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                        <Label styleClass="status-pill" text="局域网" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                        <Label styleClass="field-name" text="默认端口" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                        <TextField editable="false" prefWidth="240" text="8080" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                        <Label styleClass="field-name" text="relay-server 模板" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                        <TextField editable="false" prefWidth="240" text="http://{LAN_IP}:8080" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                    </GridPane>
+                    <Label styleClass="muted-text" text="局域网模式下，协助者需要填写被协助者显示的局域网地址。" wrapText="true" />
+                </VBox>
+
+                <VBox maxWidth="Infinity" spacing="12" styleClass="panel" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0">
+                    <Label styleClass="section-title" text="日志设置" />
+                    <CheckBox disable="true" selected="true" text="日志只在局部面板内部滚动" wrapText="true" />
+                    <CheckBox disable="true" selected="true" text="高级调试默认折叠" wrapText="true" />
+                    <CheckBox disable="true" selected="true" text="保留最近任务输出" wrapText="true" />
+                    <Label styleClass="muted-text" text="日志、终端和报告区域可以占满剩余空间；说明类设置卡片保持自然高度。" wrapText="true" />
+                </VBox>
+
+                <VBox maxWidth="Infinity" spacing="12" styleClass="panel" GridPane.columnIndex="0" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1">
+                    <Label styleClass="section-title" text="安全说明" />
+                    <Label styleClass="list-line" text="授权目录限制：所有文件操作限制在用户选择的目录内。" wrapText="true" />
+                    <Label styleClass="list-line" text="命令 cwd 限制：命令执行默认从授权目录内开始。" wrapText="true" />
+                    <Label styleClass="list-line" text="不隐藏运行：Agent 窗口保持可见，用户可随时断开。" wrapText="true" />
+                </VBox>
+
+                <VBox maxWidth="Infinity" spacing="12" styleClass="panel" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1">
+                    <Label styleClass="section-title" text="外观设置" />
+                    <HBox spacing="10">
+                        <CheckBox disable="true" selected="true" text="紧凑模式" />
+                        <CheckBox disable="true" selected="true" text="侧边栏固定" />
+                    </HBox>
+                    <Label styleClass="list-line-muted" text="浅色 Fluent 风格" wrapText="true" />
+                    <Label styleClass="list-line-muted" text="信息页自然高度，工作台页局部填充" wrapText="true" />
+                    <Label styleClass="muted-text" text="本阶段先固定为清爽浅色主题，后续可接入主题切换。" wrapText="true" />
+                </VBox>
+
+                <VBox maxHeight="Infinity" maxWidth="Infinity" spacing="12" styleClass="stretch-panel" GridPane.columnIndex="0" GridPane.hgrow="ALWAYS" GridPane.rowIndex="2" GridPane.vgrow="ALWAYS">
+                    <Label styleClass="section-title" text="启动前检查" />
+                    <Label styleClass="list-line-muted" text="1. 确认两台电脑在同一局域网。" wrapText="true" />
+                    <Label styleClass="list-line-muted" text="2. 被协助者先选择授权目录。" wrapText="true" />
+                    <Label styleClass="list-line-muted" text="3. 协助者使用连接码进入工作台。" wrapText="true" />
+                </VBox>
+
+                <VBox maxHeight="Infinity" maxWidth="Infinity" spacing="12" styleClass="stretch-panel" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="2" GridPane.vgrow="ALWAYS">
+                    <Label styleClass="section-title" text="暂不开放的能力" />
+                    <Label styleClass="list-line-muted" text="公网穿透、后台常驻、开机自启。" wrapText="true" />
+                    <Label styleClass="list-line-muted" text="读取系统凭证、跨目录访问、管理员提权。" wrapText="true" />
+                    <Label styleClass="muted-text" text="这些限制是有意保留的安全边界，不是配置遗漏。" wrapText="true" />
+                </VBox>
+            </GridPane>
+        </VBox>
+    </center>
+
+    <padding>
+        <Insets bottom="24" left="24" right="24" top="0" />
+    </padding>
+</BorderPane>

@@ -7,11 +7,19 @@ MCP Bridge 是 AI Remote Helper 的协议桥接层，允许 OpenClaw、Codex、C
 ## 启动方式
 
 ```powershell
-cd E:\openclaw-project\ai-remote-helper
-.\.tools\apache-maven-3.9.9\bin\mvn.cmd -f mcp-bridge\pom.xml spring-boot:run
+git clone https://github.com/<your-name>/ai-remote-helper.git
+cd ai-remote-helper
+mvn -f mcp-bridge/pom.xml spring-boot:run
 ```
 
 MCP Bridge 默认运行在端口 9090。
+
+默认转发到本机 Relay Server：`ws://localhost:8080/ws`。如需连接其他 Relay Server，可设置：
+
+```powershell
+$env:AIRH_RELAY_WS_URL='ws://relay-host:8080/ws'
+$env:AIRH_MCP_TIMEOUT_SECONDS='60'
+```
 
 ## MCP 端点
 

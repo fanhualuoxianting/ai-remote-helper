@@ -1,124 +1,197 @@
 # AI Remote Helper
 
-授权远程开发协助工具 — 允许 AI 通过 MCP 协议远程操作已授权的开发工作站。
+AI Remote Helper is a visible, authorized remote development assistance platform for AI coding workflows. It lets a helper or AI tool operate only inside a directory that the assisted user explicitly selects, while the assisted user keeps a desktop client open and can see logs, results, and disconnect controls.
 
-## 项目概述
+This project is designed for legitimate pair-programming and troubleshooting scenarios. It is not a hidden remote-control tool.
 
-AI Remote Helper 是一个安全的远程开发协助平台，通过授权目录限制、路径沙箱、敏感文件保护和危险命令拦截，确保远程操作的安全性。
+## What It Does
 
-## 核心特性
+- Provides a JavaFX desktop Agent Client for the assisted user.
+- Uses a Spring Boot Relay Server to manage sessions, task routing, logs, and audit records.
+- Exposes an MCP Bridge so tools such as OpenClaw, Codex, or Claude-compatible clients can request authorized file and command operations.
+- Restricts file and command operations to the user-selected workspace.
+- Blocks sensitive files, path traversal, and dangerous commands.
+- Generates task logs, file-change records, and session reports.
+- Supports a LAN packaging flow for Windows app-image distribution.
 
-- 🔒 **授权目录限制**：所有操作必须在用户选择的授权目录内
-- 🛡️ **路径沙箱**：防止路径穿越攻击
-- 🔐 **敏感文件保护**：阻止访问 SSH 密钥、云凭证等
-- ⚠️ **危险命令拦截**：四级风险评估
-- 📝 **操作审计**：所有操作都有审计日志
-- 🔄 **自动备份**：文件修改前自动备份
+## Current Status
 
-## 模块说明
+This repository is a public MVP / portfolio-ready version. The core safety model, relay flow, JavaFX client, MCP bridge, LAN packaging scripts, and documentation are present. It is suitable for local development, demonstrations, and further hardening.
 
-| 模块 | 说明 |
-|------|------|
-| `common-protocol` | 通用协议定义（DTO、枚举） |
-| `common-safety` | 安全模块（路径沙箱、敏感文件保护、危险命令检测） |
-| `relay-server` | 中继服务器（设备管理、任务调度、日志存储） |
-| `agent-client` | Agent 客户端（JavaFX UI、文件操作、命令执行） |
-| `mcp-bridge` | MCP 协议桥接（SSE 传输、工具注册） |
-| `web-console` | Web 控制台前端（Vue 3） |
+Recommended next steps before real-world use:
 
-## 快速开始
+- Add authentication and authorization hardening for shared or public networks.
+- Replace development database credentials with environment-specific configuration.
+- Add more integration tests around WebSocket task routing.
+- Publish signed release artifacts through GitHub Releases rather than committing build outputs.
 
-### 环境要求
+## Architecture
 
-- Java 21+
-- Maven 3.9.9（项目内置）
-- PostgreSQL 17
-- Redis
-- Node.js 18+（Web Console）
-
-### 构建项目
-
-```powershell
-cd E:\openclaw-project\ai-remote-helper
-.\.tools\apache-maven-3.9.9\bin\mvn.cmd clean package
+```text
+AI Tool / MCP Client
+        |
+        v
+   MCP Bridge
+        |
+        v
+   Relay Server  <---->  PostgreSQL / Redis
+        |
+        v
+   Agent Client
+        |
+        v
+Authorized Project Directory
 ```
 
-### 启动服务
+Modules:
+
+| Module | Purpose |
+| --- | --- |
+| `common-protocol` | Shared DTOs, message types, task states, and enums. |
+| `common-safety` | Path sandboxing, sensitive-file protection, and command risk detection. |
+| `relay-server` | Spring Boot relay for devices, sessions, tasks, logs, audit events, and WebSocket routing. |
+| `agent-client` | JavaFX desktop client for directory authorization, connection, task execution, and visible logs. |
+| `mcp-bridge` | MCP-compatible bridge that forwards AI tool requests to the relay. |
+| `web-console` | Vue-based web console prototype for monitoring and administration. |
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for more detail.
+
+## Safety Boundaries
+
+AI Remote Helper intentionally does not implement stealth or persistence behavior.
+
+It does not:
+
+- Hide the Agent Client window.
+- Start automatically on boot.
+- Install a system service.
+- Request administrator privileges by default.
+- Bypass the authorized directory.
+- Take over mouse or keyboard input.
+- Disable firewalls or security software.
+- Read browser data, SSH private keys, or system credentials.
+
+See [SECURITY.md](SECURITY.md) for the full security model.
+
+## Requirements
+
+- Java 21+
+- Maven 3.9+
+- PostgreSQL for relay persistence
+- Redis for online session/cache state
+- Node.js 18+ if you want to run the Web Console
+- Windows 10/11 with `jpackage` for LAN app-image packaging
+
+## Quick Start
+
+Build all Java modules:
 
 ```powershell
-# 1. 启动 Relay Server
-.\.tools\apache-maven-3.9.9\bin\mvn.cmd -f relay-server\pom.xml spring-boot:run
+mvn clean package
+```
 
-# 2. 启动 Agent Client
-.\.tools\apache-maven-3.9.9\bin\mvn.cmd -f agent-client\pom.xml javafx:run
+Run the Relay Server:
 
-# 3. 启动 MCP Bridge
-.\.tools\apache-maven-3.9.9\bin\mvn.cmd -f mcp-bridge\pom.xml spring-boot:run
+```powershell
+mvn -f relay-server/pom.xml spring-boot:run
+```
 
-# 4. 启动 Web Console
+Run the Agent Client:
+
+```powershell
+mvn -f agent-client/pom.xml javafx:run
+```
+
+Run the MCP Bridge:
+
+```powershell
+mvn -f mcp-bridge/pom.xml spring-boot:run
+```
+
+Run the Web Console:
+
+```powershell
 cd web-console
 npm install
 npm run dev
 ```
 
-## 使用流程
+Default local development endpoints:
 
-1. 启动 Relay Server（端口 8080）
-2. 启动 Agent Client，选择授权目录
-3. Agent 连接到 Relay Server
-4. 通过 MCP Bridge 或 Web Console 执行操作
-5. 所有操作在授权目录内执行
+- Relay Server: `http://localhost:8080`
+- MCP Bridge SSE: `http://localhost:9090/mcp/sse`
+- Web Console: `http://localhost:3000`
 
-## MCP 工具
+## Local Development Configuration
 
-| 工具 | 说明 |
-|------|------|
-| `remote_list_devices` | 列出在线设备 |
-| `remote_connect_session` | 连接会话 |
-| `remote_list_dir` | 列出目录内容 |
-| `remote_read_file` | 读取文件 |
-| `remote_write_file` | 写入文件 |
-| `remote_apply_patch` | 应用补丁 |
-| `remote_run_command` | 执行命令 |
-| `remote_get_task_logs` | 获取任务日志 |
-| `remote_kill_task` | 终止任务 |
-| `remote_generate_report` | 生成报告 |
+The default relay configuration is intended for local development:
 
-## 安全说明
+- PostgreSQL: `localhost:15432`
+- Database: `testdb`
+- Username/password: `postgres/postgres`
+- Redis: `localhost:16379`
 
-详见 [SECURITY.md](SECURITY.md)
+Do not reuse these development credentials in production or on a shared network. Override them with environment-specific configuration before deployment.
 
-## 部署说明
+## Basic Usage
 
-详见 [DEPLOY.md](DEPLOY.md)
+Assisted user:
 
-## 架构说明
+1. Start the Agent Client.
+2. Choose `我需要别人帮忙`.
+3. Select a project directory as the authorized workspace.
+4. Enter the helper machine's LAN IP and relay port.
+5. Test the connection, connect, and share the generated connection code.
+6. Watch all operations in the visible Agent Client window and disconnect at any time.
 
-详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+Helper:
 
-## MCP 使用说明
+1. Start the Relay Server.
+2. Start the Agent Client and choose `我要帮别人处理项目`, or connect through the MCP Bridge.
+3. Enter the assisted user's connection code.
+4. Browse authorized files, run allowed commands, inspect logs, and generate reports.
 
-详见 [docs/MCP_USAGE.md](docs/MCP_USAGE.md)
+LAN details are documented in [docs/LAN_MODE.md](docs/LAN_MODE.md).
 
-## 打包说明
+## Windows LAN Packaging
 
-详见 [docs/PACKAGING.md](docs/PACKAGING.md)
+Build a Windows app-image with bundled runtime:
 
-## Web Console 说明
+```powershell
+agent-client\scripts\package-lan-windows.bat -Offline
+```
 
-详见 [docs/WEB_CONSOLE.md](docs/WEB_CONSOLE.md)
+The script writes output to `dist/AI-Remote-Helper-LAN/`. Build outputs are intentionally ignored by Git. If you want to distribute the app, zip the generated directory and upload it to a GitHub Release.
 
-## 开发报告
+See [docs/LAN_PACKAGING.md](docs/LAN_PACKAGING.md).
 
-详见 [DEVELOPMENT_REPORT.md](DEVELOPMENT_REPORT.md)
+## Startup Easter Egg
 
-## 路线图
+The Matrix-style startup overlay is a default-off development easter egg. It only appears when explicitly enabled:
 
-- [x] Phase 01-03：项目骨架、连接、任务路由
-- [x] Phase 04-07：安全边界、文件操作、命令执行
-- [x] Phase 08-10：持久化、MCP Bridge、报告生成
-- [x] Phase 11-13：打包、Web Console、最终集成
+```powershell
+$env:AIRH_STARTUP_EASTER_EGG='matrix'
+```
 
-## 许可证
+or with JVM properties:
 
-私有项目
+```text
+-Dairh.startupEasterEgg=matrix
+-Dairh.startupEasterEggDuration=5
+```
+
+It is rendered inside the application window, can be skipped, and does not create OS-level popups or control user input.
+
+## Documentation
+
+- [SECURITY.md](SECURITY.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/LAN_MODE.md](docs/LAN_MODE.md)
+- [docs/LAN_PACKAGING.md](docs/LAN_PACKAGING.md)
+- [docs/MCP_USAGE.md](docs/MCP_USAGE.md)
+- [docs/WEB_CONSOLE.md](docs/WEB_CONSOLE.md)
+- [docs/ROADMAP.md](docs/ROADMAP.md)
+
+## License
+
+MIT. See [LICENSE](LICENSE).

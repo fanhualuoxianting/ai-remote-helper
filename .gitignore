@@ -1,5 +1,9 @@
 # Build output
 target/
+dist/
+dist-lan/
+out/
+build/
 
 # IDE
 .idea/
@@ -19,9 +23,38 @@ Thumbs.db
 
 # Tools (Maven binary, etc.)
 .tools/
+.m2/
 
 # Logs
 *.log
 
 # Temporary
 .tmp/
+tmp/
+*.tmp
+
+# Local packaging / release artifacts
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.msi
+*.exe
+
+# Local screenshots and verification artifacts
+screenshot*.png
+screenshot*.jpg
+screenshot*.jpeg
+screenshot*.webp
+
+# Local agent/process notes
+AGENTS.md
+复现记录*.md
+*_REPORT.md
+DEVELOPMENT_REPORT.md
+tasks/
+
+# Runtime data
+*.db
+*.sqlite
+*.sqlite3

@@ -14,7 +14,8 @@ Web Console 是 AI Remote Helper 的管理界面，用于查看在线设备、�
 ### 启动步骤
 
 ```powershell
-cd E:\openclaw-project\ai-remote-helper\web-console
+git clone https://github.com/<your-name>/ai-remote-helper.git
+cd ai-remote-helper\web-console
 npm install
 npm run dev
 ```
@@ -25,6 +26,13 @@ Web Console 默认运行在端口 3000。
 
 ```
 http://localhost:3000
+```
+
+开发代理默认转发到 `http://localhost:8080`。如需连接其他 Relay Server：
+
+```powershell
+$env:VITE_RELAY_API_URL='http://relay-host:8080'
+npm run dev
 ```
 
 ## 功能说明

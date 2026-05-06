@@ -59,6 +59,7 @@ public class AgentConnectionClient {
         listener.onConnecting(websocketUrl);
         PathSandbox pathSandbox = new PathSandbox(Path.of(authorizedDirectory));
         taskExecutor = new TaskExecutor(new FileSystemService(pathSandbox), new CommandExecutionService(pathSandbox),
+                pathSandbox.authorizedDirectory(),
                 (taskId, message) -> sendTaskLog(taskId, "INFO", message));
 
         stompClient = new WebSocketStompClient(new StandardWebSocketClient());
@@ -150,7 +151,10 @@ public class AgentConnectionClient {
         if (basePath.endsWith("/")) {
             basePath = basePath.substring(0, basePath.length() - 1);
         }
-        return scheme + "://" + authority + basePath + "/ws/agent";
+        if ("ws".equals(scheme) || "wss".equals(scheme)) {
+            return scheme + "://" + authority + (basePath.isBlank() ? "/ws" : basePath);
+        }
+        return scheme + "://" + authority + basePath + "/ws";
     }
 
     private final class ServerEventHandler implements StompFrameHandler {
