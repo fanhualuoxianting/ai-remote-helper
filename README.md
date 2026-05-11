@@ -1,5 +1,7 @@
 # AI Remote Helper
 
+[中文说明](README.zh-CN.md) | [Download latest Windows LAN release](https://github.com/fanhualuoxianting/ai-remote-helper/releases/latest)
+
 <p align="center">
   <img src="docs/assets/airh-demo.png" width="880" alt="AI Remote Helper desktop demo" />
 </p>
