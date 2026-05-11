@@ -63,6 +63,7 @@ public class ControllerViewController {
     @FXML private Label aiRunnerModeLabel;
     @FXML private ComboBox<String> aiRunnerComboBox;
     @FXML private Button listRootButton;
+    @FXML private Button selfTestButton;
     @FXML private Button readFileButton;
     @FXML private Button runCommandButton;
     @FXML private Button getLogsButton;
@@ -98,6 +99,13 @@ public class ControllerViewController {
         return thread;
     });
     private ScheduledFuture<?> helpRequestPollingTask;
+    private final ScheduledExecutorService deviceStatusExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread thread = new Thread(r, "airh-device-status-poller");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private ScheduledFuture<?> deviceStatusPollingTask;
+    private boolean remoteMarkedOffline;
 
     public BorderPane getRoot() {
         return root;
@@ -126,6 +134,7 @@ public class ControllerViewController {
     @FXML
     private void backToRoleSelect() {
         stopHelpRequestPolling();
+        stopDeviceStatusPolling();
         application.showRoleSelectView();
     }
 
@@ -144,6 +153,44 @@ public class ControllerViewController {
     @FXML
     private void listRootDir() {
         createTask(TaskType.LIST_DIR, Map.of("path", "."), 30);
+    }
+
+    @FXML
+    private void runLinkSelfTest() {
+        clearError();
+        if (sessionId == null || sessionId.isBlank()) {
+            showError("请先连接远程设备，再执行链路自检");
+            return;
+        }
+        if (selfTestButton != null) {
+            selfTestButton.setDisable(true);
+        }
+        directAiStatusLabel.setText("正在执行链路自检：LIST_DIR .");
+        appendLog("开始链路自检：下发 LIST_DIR .");
+        Map<String, Object> request = Map.of(
+                "taskType", TaskType.LIST_DIR.name(),
+                "payload", Map.of("data", Map.of("path", ".")),
+                "timeoutSeconds", 10
+        );
+        sendPost("/api/sessions/" + sessionId + "/tasks", request)
+                .thenAccept(body -> Platform.runLater(() -> {
+                    handleCreatedTask(TaskType.LIST_DIR, body);
+                    try {
+                        JsonNode response = objectMapper.readTree(body);
+                        String taskId = response.path("taskId").asText("");
+                        pollSelfTestResult(taskId, 0);
+                    } catch (IOException exception) {
+                        showError("解析自检任务响应失败：" + exception.getMessage());
+                        enableSelfTestButton();
+                    }
+                }))
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        showError(errorMessage(throwable));
+                        enableSelfTestButton();
+                    });
+                    return null;
+                });
     }
 
     @FXML
@@ -383,9 +430,11 @@ public class ControllerViewController {
                     permissionsLabel.setText("通过 relay-server 下发任务；实际文件、命令权限由 Agent 授权目录和 safety 模块执行");
                     notConnectedHint.setText("已连接远程设备。请只在对方授权目录内执行协助操作。");
                     directAiStatusLabel.setText("已连接远程设备，可以直接输入 AI 协助目标。");
+                    remoteMarkedOffline = false;
                     refreshTaskButtons();
                     appendLog("已匹配远程设备：" + deviceIdLabel.getText() + "，sessionId=" + sessionId);
                     startHelpRequestPolling();
+                    startDeviceStatusPolling();
                     return;
                 }
             }
@@ -534,6 +583,123 @@ public class ControllerViewController {
         }
     }
 
+    private void startDeviceStatusPolling() {
+        stopDeviceStatusPolling();
+        deviceStatusPollingTask = deviceStatusExecutor.scheduleAtFixedRate(() ->
+                sendGet("/api/devices/online")
+                        .thenAccept(body -> Platform.runLater(() -> refreshConnectedDeviceStatus(body)))
+                        .exceptionally(throwable -> {
+                            Platform.runLater(() -> markRemoteOffline("无法获取在线设备列表：" + errorMessage(throwable)));
+                            return null;
+                        }), 3, 3, TimeUnit.SECONDS);
+    }
+
+    private void stopDeviceStatusPolling() {
+        if (deviceStatusPollingTask != null) {
+            deviceStatusPollingTask.cancel(false);
+            deviceStatusPollingTask = null;
+        }
+    }
+
+    private void refreshConnectedDeviceStatus(String body) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return;
+        }
+        try {
+            JsonNode devices = objectMapper.readTree(body);
+            for (JsonNode device : devices) {
+                if (sessionId.equals(device.path("sessionId").asText())) {
+                    boolean online = device.path("online").asBoolean(false);
+                    if (online) {
+                        remoteMarkedOffline = false;
+                        deviceStatusLabel.setText("在线");
+                        topStatusLabel.setText("已连接远程设备");
+                        notConnectedHint.setText("远程设备在线。请只在对方授权目录内执行协助操作。");
+                        refreshTaskButtons();
+                    } else {
+                        markRemoteOffline("远程设备已离线，请让对方重新连接并提供新连接码。");
+                    }
+                    return;
+                }
+            }
+            markRemoteOffline("远程设备已离线，请让对方重新连接并提供新连接码。");
+        } catch (IOException exception) {
+            markRemoteOffline("解析在线设备列表失败：" + exception.getMessage());
+        }
+    }
+
+    private void markRemoteOffline(String message) {
+        if (!remoteMarkedOffline) {
+            appendLog(message);
+        }
+        remoteMarkedOffline = true;
+        sessionId = null;
+        sessionIdLabel.setText("已离线");
+        deviceStatusLabel.setText("离线");
+        topStatusLabel.setText("远程设备离线");
+        notConnectedHint.setText(message);
+        directAiStatusLabel.setText("远程设备离线。请让对方重新连接并提供新连接码。");
+        stopHelpRequestPolling();
+        stopDeviceStatusPolling();
+        refreshTaskButtons();
+    }
+
+    private void pollSelfTestResult(String taskId, int attempt) {
+        if (taskId == null || taskId.isBlank()) {
+            showError("自检任务缺少 taskId");
+            if (selfTestButton != null) {
+                selfTestButton.setDisable(false);
+            }
+            return;
+        }
+        CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS).execute(() ->
+                sendGet("/api/tasks/" + taskId)
+                        .thenAccept(body -> Platform.runLater(() -> handleSelfTestPoll(taskId, body, attempt)))
+                        .exceptionally(throwable -> {
+                            Platform.runLater(() -> {
+                                showError(errorMessage(throwable));
+                                enableSelfTestButton();
+                            });
+                            return null;
+                        }));
+    }
+
+    private void handleSelfTestPoll(String taskId, String body, int attempt) {
+        taskResultArea.setText(pretty(body));
+        try {
+            JsonNode response = objectMapper.readTree(body);
+            String status = response.path("status").asText("");
+            if ("SUCCESS".equals(status)) {
+                directAiStatusLabel.setText("链路自检通过：读授权目录、任务下发、结果回传均正常。");
+                appendLog("链路自检通过，taskId=" + taskId);
+                if (selfTestButton != null) {
+                    enableSelfTestButton();
+                }
+                return;
+            }
+            if ("FAILED".equals(status) || "TIMEOUT".equals(status) || "CANCELLED".equals(status) || "BLOCKED".equals(status)) {
+                directAiStatusLabel.setText("链路自检未通过：" + status + "。请查看任务输出和日志。");
+                appendLog("链路自检未通过：" + status + "，taskId=" + taskId);
+                if (selfTestButton != null) {
+                    enableSelfTestButton();
+                }
+                return;
+            }
+            if (attempt >= 12) {
+                directAiStatusLabel.setText("链路自检等待超时。请检查对方是否在线、防火墙或 relay-server 状态。");
+                appendLog("链路自检等待超时，taskId=" + taskId);
+                if (selfTestButton != null) {
+                    enableSelfTestButton();
+                }
+                return;
+            }
+            pollSelfTestResult(taskId, attempt + 1);
+        } catch (IOException exception) {
+            showError("解析自检结果失败：" + exception.getMessage());
+            enableSelfTestButton();
+        }
+    }
+
     private String baseRelayUrl() {
         String base = relayUrlField.getText().strip();
         while (base.endsWith("/")) {
@@ -577,6 +743,7 @@ public class ControllerViewController {
     private void refreshTaskButtons() {
         boolean connected = sessionId != null && !sessionId.isBlank();
         listRootButton.setDisable(!connected);
+        if (selfTestButton != null) selfTestButton.setDisable(!connected);
         readFileButton.setDisable(!connected);
         runCommandButton.setDisable(!connected);
         getLogsButton.setDisable(!connected);
@@ -670,6 +837,17 @@ public class ControllerViewController {
 
     private String blank(Object value) {
         return value == null ? "" : value.toString();
+    }
+
+    private String errorMessage(Throwable throwable) {
+        Throwable effective = throwable.getCause() == null ? throwable : throwable.getCause();
+        return effective.getMessage() == null ? effective.toString() : effective.getMessage();
+    }
+
+    private void enableSelfTestButton() {
+        if (selfTestButton != null) {
+            selfTestButton.setDisable(sessionId == null || sessionId.isBlank());
+        }
     }
 
     private Path findNextPendingAiTaskFile(Path requestQueueDir) throws IOException {

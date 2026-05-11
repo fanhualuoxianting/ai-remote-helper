@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -137,7 +139,7 @@ public class CommandExecutionService implements AutoCloseable {
     }
 
     private void readStream(InputStream inputStream, StringBuilder output, Consumer<String> callback) {
-        Charset charset = Charset.defaultCharset();
+        Charset charset = commandOutputCharset();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, charset))) {
             char[] buffer = new char[1024];
             int read;
@@ -155,6 +157,39 @@ public class CommandExecutionService implements AutoCloseable {
                 callback.accept("读取命令输出失败：" + exception.getMessage());
             }
         }
+    }
+
+    private Charset commandOutputCharset() {
+        String configured = firstNonBlank(
+                System.getProperty("airh.commandOutputCharset"),
+                System.getenv("AIRH_COMMAND_OUTPUT_CHARSET")
+        );
+        if (configured != null) {
+            try {
+                return Charset.forName(configured);
+            } catch (IllegalCharsetNameException | UnsupportedCharsetException ignored) {
+                return Charset.defaultCharset();
+            }
+        }
+        String os = System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT);
+        if (os.contains("win")) {
+            try {
+                return Charset.forName("GBK");
+            } catch (UnsupportedCharsetException ignored) {
+                return Charset.defaultCharset();
+            }
+        }
+        return Charset.defaultCharset();
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first.strip();
+        }
+        if (second != null && !second.isBlank()) {
+            return second.strip();
+        }
+        return null;
     }
 
     private void waitForReader(CompletableFuture<Void> reader) {

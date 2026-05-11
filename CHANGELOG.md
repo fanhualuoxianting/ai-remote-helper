@@ -2,6 +2,14 @@
 
 All notable changes to AI Remote Helper will be documented in this file.
 
+## 0.1.4 - LAN stability hotfix
+
+- Added relay-side timeout sweeping so stale `PENDING` / `RUNNING` tasks become `TIMEOUT` instead of hanging forever.
+- Added assisted Agent Client auto-reconnect after unexpected WebSocket transport disconnects.
+- Added helper-side offline detection and a `一键链路自检` button for quick `LIST_DIR .` path checks.
+- Improved Chinese Windows command output decoding, with `AIRH_COMMAND_OUTPUT_CHARSET` / `airh.commandOutputCharset` override support.
+- Updated relay health version reporting, in-app version labels, and Windows packaging defaults to `0.1.4`.
+
 ## 0.1.3 - Agent task result hotfix
 
 - Fixed the agent-side STOMP JSON converter so `Instant` fields in task logs and task results can be serialized correctly.

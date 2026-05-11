@@ -18,11 +18,14 @@ import com.airh.relay.service.AuditService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -31,6 +34,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Service
 public class TaskService {
     private static final int DEFAULT_TIMEOUT_SECONDS = 30;
+    private static final Set<TaskStatus> ACTIVE_STATUSES = EnumSet.of(TaskStatus.PENDING, TaskStatus.RUNNING);
 
     private final DeviceRegistry deviceRegistry;
     private final SimpMessagingTemplate messagingTemplate;
@@ -99,15 +103,15 @@ public class TaskService {
     }
 
     public TaskRecord getTask(String taskId) {
+        TaskRecord task = tasks.get(taskId);
+        if (task != null) {
+            expireTaskIfNeeded(task);
+            return tasks.getOrDefault(taskId, task);
+        }
         return taskRecordRepository.findById(taskId)
+                .map(this::expirePersistedTaskIfNeeded)
                 .map(this::toRecord)
-                .orElseGet(() -> {
-                    TaskRecord task = tasks.get(taskId);
-                    if (task == null) {
-                        throw new IllegalArgumentException("任务不存在：" + taskId);
-                    }
-                    return task;
-                });
+                .orElseThrow(() -> new IllegalArgumentException("任务不存在：" + taskId));
     }
 
     public List<TaskLog> getLogs(String taskId) {
@@ -126,7 +130,7 @@ public class TaskService {
 
     public void receiveTaskResult(TaskResultMessage message) {
         TaskRecord task = tasks.get(message.taskId());
-        if (task == null) {
+        if (task == null || !ACTIVE_STATUSES.contains(task.status())) {
             return;
         }
         Instant finishedAt = message.finishedAt() == null ? Instant.now() : message.finishedAt();
@@ -147,6 +151,20 @@ public class TaskService {
         appendLog(message.taskId(), task.sessionId(), "INFO", "relay-server 已收到 Agent 真实任务结果：" + status);
     }
 
+    @Scheduled(fixedDelay = 2000)
+    public void sweepTimedOutTasks() {
+        Instant now = Instant.now();
+        tasks.values().forEach(task -> {
+            if (ACTIVE_STATUSES.contains(task.status()) && task.createdAt().plusSeconds(task.timeoutSeconds()).isBefore(now)) {
+                markTaskTimedOut(task, now, "任务超过 " + task.timeoutSeconds() + " 秒未完成，已由 relay-server 自动标记超时");
+            }
+        });
+
+        Instant defaultCutoff = now.minusSeconds(DEFAULT_TIMEOUT_SECONDS);
+        taskRecordRepository.findByStatusInAndCreatedAtBefore(ACTIVE_STATUSES, defaultCutoff)
+                .forEach(entity -> expirePersistedTaskIfNeeded(entity, now));
+    }
+
     private void appendLog(String taskId, String sessionId, String level, String message) {
         logsByTaskId.computeIfAbsent(taskId, ignored -> new CopyOnWriteArrayList<>())
                 .add(new TaskLog(taskId, sessionId, level, message, Instant.now()));
@@ -154,6 +172,56 @@ public class TaskService {
 
     private String safeLevel(String level) {
         return level == null || level.isBlank() ? "INFO" : level;
+    }
+
+    private void expireTaskIfNeeded(TaskRecord task) {
+        if (ACTIVE_STATUSES.contains(task.status())
+                && task.createdAt().plusSeconds(task.timeoutSeconds()).isBefore(Instant.now())) {
+            markTaskTimedOut(task, Instant.now(),
+                    "任务超过 " + task.timeoutSeconds() + " 秒未完成，已由 relay-server 自动标记超时");
+        }
+    }
+
+    private TaskRecordEntity expirePersistedTaskIfNeeded(TaskRecordEntity entity) {
+        return expirePersistedTaskIfNeeded(entity, Instant.now());
+    }
+
+    private TaskRecordEntity expirePersistedTaskIfNeeded(TaskRecordEntity entity, Instant now) {
+        if (!ACTIVE_STATUSES.contains(entity.getStatus())) {
+            return entity;
+        }
+        if (!entity.getCreatedAt().plusSeconds(DEFAULT_TIMEOUT_SECONDS).isBefore(now)) {
+            return entity;
+        }
+        String error = "任务超过 " + DEFAULT_TIMEOUT_SECONDS + " 秒未完成，已由 relay-server 自动标记超时";
+        entity.complete(TaskStatus.TIMEOUT, "任务超时未返回结果", "", "", error, now);
+        taskRecordRepository.save(entity);
+        TaskRecord memoryTask = tasks.get(entity.getTaskId());
+        if (memoryTask != null && ACTIVE_STATUSES.contains(memoryTask.status())) {
+            tasks.put(entity.getTaskId(), memoryTask.withResult(TaskStatus.TIMEOUT,
+                    "任务超时未返回结果", "", "", error, now));
+        }
+        appendLog(entity.getTaskId(), entity.getSessionId(), "WARN", error);
+        auditService.logEvent(entity.getSessionId(), "TASK_TIMEOUT", Map.of("taskId", entity.getTaskId()));
+        return entity;
+    }
+
+    private void markTaskTimedOut(TaskRecord task, Instant now, String error) {
+        TaskRecord latest = tasks.get(task.taskId());
+        if (latest == null || !ACTIVE_STATUSES.contains(latest.status())) {
+            return;
+        }
+        TaskRecord timedOut = latest.withResult(TaskStatus.TIMEOUT, "任务超时未返回结果", "", "", error, now);
+        tasks.put(latest.taskId(), timedOut);
+        taskRecordRepository.findById(latest.taskId())
+                .ifPresentOrElse(entity -> {
+                    if (ACTIVE_STATUSES.contains(entity.getStatus())) {
+                        entity.complete(TaskStatus.TIMEOUT, "任务超时未返回结果", "", "", error, now);
+                        taskRecordRepository.save(entity);
+                    }
+                }, () -> taskRecordRepository.save(toEntity(timedOut)));
+        appendLog(latest.taskId(), latest.sessionId(), "WARN", error);
+        auditService.logEvent(latest.sessionId(), "TASK_TIMEOUT", Map.of("taskId", latest.taskId()));
     }
 
     private String agentTopic(String deviceId) {

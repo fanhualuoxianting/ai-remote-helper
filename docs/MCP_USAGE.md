@@ -67,9 +67,13 @@ $env:AIRH_MCP_TIMEOUT_SECONDS='60'
 url = "http://localhost:9090/mcp/sse"
 ```
 
-## Claude / Codex 接入
+## Verified Integrations
 
-待验证具体配置方式。
+| Tool | Status | Notes |
+|------|--------|-------|
+| OpenClaw | Verified | Uses the SSE MCP endpoint at `http://localhost:9090/mcp/sse`. |
+| Codex | Experimental | Current helper workflow prefers the local JSON task queue bridge; standard MCP wiring can be added later. |
+| Claude Desktop | Planned | Configuration is intentionally left for a later compatibility pass. |
 
 ## 安全说明
 

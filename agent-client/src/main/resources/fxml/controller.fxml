@@ -45,6 +45,7 @@
                         <Label styleClass="field-name" text="连接码" />
                         <TextField fx:id="connectionCodeField" promptText="输入对方连接码" styleClass="code-input" />
                         <Button fx:id="connectRemoteButton" maxWidth="Infinity" onAction="#connectRemoteDevice" styleClass="success-button" text="连接远程设备" />
+                        <Button fx:id="selfTestButton" maxWidth="Infinity" onAction="#runLinkSelfTest" styleClass="primary-button" text="一键链路自检" />
                     </VBox>
 
                     <VBox spacing="9" styleClass="panel">

@@ -18,7 +18,7 @@ public class HealthController {
 
     public HealthController(NetworkAddressService networkAddressService,
                             @Value("${spring.application.name:ai-remote-helper-relay}") String appName,
-                            @Value("${airh.version:${app.version:0.1.3-SNAPSHOT}}") String version) {
+                            @Value("${airh.version:${app.version:0.1.4-SNAPSHOT}}") String version) {
         this.networkAddressService = networkAddressService;
         this.appName = appName;
         this.version = version;

@@ -1,5 +1,9 @@
 # AI Remote Helper
 
+<p align="center">
+  <img src="docs/assets/airh-demo.png" width="880" alt="AI Remote Helper desktop demo" />
+</p>
+
 AI Remote Helper is a visible, authorized remote development assistance platform for AI coding workflows. It lets a helper or AI tool operate only inside a directory that the assisted user explicitly selects, while the assisted user keeps a desktop client open and can see logs, results, and disconnect controls.
 
 This project is designed for legitimate pair-programming and troubleshooting scenarios. It is not a hidden remote-control tool.
@@ -27,6 +31,10 @@ Recommended next steps before real-world use:
 - Publish signed release artifacts through GitHub Releases rather than committing build outputs.
 
 ## Architecture
+
+<p align="center">
+  <img src="docs/assets/architecture.png" width="880" alt="AI Remote Helper architecture" />
+</p>
 
 ```text
 AI Tool / MCP Client
@@ -57,6 +65,12 @@ Modules:
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for more detail.
 
+## Desktop Workflow
+
+| Assisted Agent Client | Helper Review Workbench |
+| --- | --- |
+| <img src="docs/assets/agent-client.png" width="420" alt="Assisted user agent client" /> | <img src="docs/assets/helper-review.png" width="420" alt="Helper review workbench" /> |
+
 ## Safety Boundaries
 
 AI Remote Helper intentionally does not implement stealth or persistence behavior.
@@ -73,6 +87,28 @@ It does not:
 - Read browser data, SSH private keys, or system credentials.
 
 See [SECURITY.md](SECURITY.md) for the full security model.
+
+## 3-Minute Local Demo
+
+```powershell
+git clone https://github.com/fanhualuoxianting/ai-remote-helper.git
+cd ai-remote-helper
+
+docker compose up -d
+mvn clean package
+scripts\start-relay-lan.bat
+mvn -f agent-client/pom.xml javafx:run
+```
+
+Demo scenario:
+
+1. Assisted user selects a workspace.
+2. Helper connects using the session code.
+3. Assisted user submits a natural-language request.
+4. Helper reviews and approves the request.
+5. Codex or OpenClaw writes a JSON task into the local AI queue.
+6. Agent executes file or command operations inside the authorized directory.
+7. Logs, task results, and report output are returned visibly.
 
 ## Requirements
 
@@ -158,11 +194,30 @@ Helper:
 1. Start the Relay Server. On Windows LAN demos, prefer `scripts\start-relay-lan.bat`.
 2. Start the Agent Client and choose `我要帮别人处理项目`, or connect through the MCP Bridge.
 3. Enter the assisted user's connection code.
-4. Review pending requests in `需求审核`; approving a request opens a visible PowerShell/Codex session on the helper machine.
-5. In `AI 协助`, let the AI write JSON task files into its work directory, then click `执行下一条 AI 任务` so the JavaFX client submits them through the relay on the AI's behalf.
-6. Browse authorized files, run allowed commands, inspect logs, and generate reports.
+4. Click `一键链路自检` after connecting to verify directory listing, task dispatch, and result return.
+5. Review pending requests in `需求审核`; approving a request opens a visible PowerShell/Codex session on the helper machine.
+6. In `AI 协助`, let the AI write JSON task files into its work directory, then click `执行下一条 AI 任务` so the JavaFX client submits them through the relay on the AI's behalf.
+7. Browse authorized files, run allowed commands, inspect logs, and generate reports.
 
 LAN details are documented in [docs/LAN_MODE.md](docs/LAN_MODE.md).
+
+## LAN Troubleshooting
+
+If a connection becomes unstable:
+
+- Confirm both machines are on the same LAN and the assisted user is using the helper machine's LAN address, for example `http://192.168.x.x:18080`.
+- Confirm the Relay Server is still running with `scripts\start-relay-lan.bat` and that Windows Firewall allows the port.
+- Ask the assisted user to reconnect and share the new connection code if the helper UI shows `远程设备离线`.
+- Use `一键链路自检` on the helper page. A passing self-test means `LIST_DIR .`, relay dispatch, and result return are working.
+- Tasks that do not return before their timeout are now marked `TIMEOUT` by the relay instead of staying `RUNNING` forever.
+- The assisted Agent Client automatically retries relay WebSocket reconnection after unexpected disconnects.
+- On Chinese Windows, command output defaults to `GBK` decoding to avoid mojibake. Override it when needed:
+
+```powershell
+$env:AIRH_COMMAND_OUTPUT_CHARSET='UTF-8'
+# or JVM property:
+# -Dairh.commandOutputCharset=UTF-8
+```
 
 ## Windows LAN Packaging
 

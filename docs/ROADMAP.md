@@ -1,33 +1,30 @@
-# 路线图
+# Roadmap
 
-## Phase 01：项目骨架
+AI Remote Helper is currently a public MVP focused on Windows LAN-assisted AI coding workflows. The next work should make the existing workflow easier to demo, safer to operate, and more reliable before expanding into public-network scenarios.
 
-- Maven 多模块结构。
-- 基础协议枚举和 DTO。
-- 基础安全规则框架。
-- 空 Spring Boot relay-server。
-- 基础 JavaFX agent-client 窗口。
-- MCP Bridge 模块占位。
-- 中文文档。
+## Completed
 
-## Phase 02：Agent 与 Server 连接
+- Maven multi-module architecture with `agent-client`, `relay-server`, `mcp-bridge`, `common-protocol`, `common-safety`, and `web-console`.
+- JavaFX Agent Client for visible directory authorization, connection codes, task logs, help requests, and helper review.
+- Spring Boot Relay Server for device sessions, WebSocket task routing, task status, logs, audit records, and health endpoints.
+- MCP Bridge module for AI tool integration through relay-mediated remote operations.
+- Workspace sandboxing, path traversal protection, sensitive-file protection, and command risk detection.
+- PostgreSQL-backed task, audit, file-change, and help-request persistence with Redis-backed online/session cache.
+- LAN packaging scripts for Windows app-image distribution and GitHub Release artifacts.
+- Versioned releases through `v0.1.4`, including task timeout handling, Agent auto-reconnect, offline status prompts, link self-test, and Chinese command output decoding.
 
-- Agent 配置 relay-server 地址。
-- Agent 主动连接 relay-server。
-- relay-server 维护在线 Agent 状态。
-- 基础断开和重连流程。
+## In Progress
 
-## Phase 03：任务路由
+- Web Console enhancement for online devices, session details, task logs, and audit events.
+- Integration tests around WebSocket task routing and relay-to-agent result delivery.
+- Authentication and authorization hardening for shared networks.
+- Cloud deployment guide for a hardened relay-server setup.
+- AI runner ergonomics, including clearer queue visibility and result feedback inside the helper UI.
 
-- mcp-bridge 提交任务到 relay-server。
-- relay-server 将任务转发给对应 Agent。
-- Agent 返回任务状态和日志。
+## Planned
 
-## 后续阶段
-
-- 授权目录内文件操作。
-- 命令执行和危险命令拦截。
-- 审计日志持久化。
-- report.md 生成。
-- Web Console 管理后台。
-- Agent 桌面安装包。
+- Signed Windows release packages and published SHA256 checksums.
+- Multi-agent task routing and clearer session selection.
+- User-side approval workflow for higher-risk operations.
+- Public demo video and website landing page embedding.
+- Public-network mode after token/session permissions, audit export, and high-risk confirmation are implemented.

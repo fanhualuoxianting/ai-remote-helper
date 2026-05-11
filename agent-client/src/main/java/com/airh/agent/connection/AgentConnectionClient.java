@@ -33,6 +33,9 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 public class AgentConnectionClient {
+    private static final String CLIENT_VERSION = "0.1.4";
+    private static final int RECONNECT_DELAY_SECONDS = 3;
+
     private final String deviceId;
     private final String deviceName;
     private final AgentConnectionListener listener;
@@ -45,8 +48,13 @@ public class AgentConnectionClient {
     private WebSocketStompClient stompClient;
     private StompSession stompSession;
     private ScheduledFuture<?> heartbeatTask;
+    private ScheduledFuture<?> reconnectTask;
     private TaskExecutor taskExecutor;
     private String sessionId;
+    private String lastServerUrl;
+    private String lastAuthorizedDirectory;
+    private volatile boolean manualDisconnect = true;
+    private volatile boolean connectionAttemptInFlight;
 
     public AgentConnectionClient(String deviceId, String deviceName, AgentConnectionListener listener) {
         this.deviceId = deviceId;
@@ -54,14 +62,28 @@ public class AgentConnectionClient {
         this.listener = listener;
     }
 
-    public void connect(String serverUrl, String authorizedDirectory) {
+    public synchronized void connect(String serverUrl, String authorizedDirectory) {
         if (isConnected()) {
             listener.onLog("当前已连接，忽略重复连接请求");
             return;
         }
+        lastServerUrl = serverUrl;
+        lastAuthorizedDirectory = authorizedDirectory;
+        manualDisconnect = false;
+        connectionAttemptInFlight = false;
+        cancelReconnect();
+        doConnect(serverUrl, authorizedDirectory);
+    }
 
+    private synchronized void doConnect(String serverUrl, String authorizedDirectory) {
+        if (connectionAttemptInFlight) {
+            listener.onLog("连接请求正在进行中，等待当前尝试完成");
+            return;
+        }
         String websocketUrl = toWebSocketUrl(serverUrl);
+        connectionAttemptInFlight = true;
         listener.onConnecting(websocketUrl);
+        closeStaleResources();
         PathSandbox pathSandbox = new PathSandbox(Path.of(authorizedDirectory));
         taskExecutor = new TaskExecutor(new FileSystemService(pathSandbox), new CommandExecutionService(pathSandbox),
                 pathSandbox.authorizedDirectory(),
@@ -72,7 +94,9 @@ public class AgentConnectionClient {
         stompClient.connectAsync(websocketUrl, new StompSessionHandlerAdapter() {
             @Override
             public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
+                connectionAttemptInFlight = false;
                 stompSession = session;
+                cancelReconnect();
                 listener.onLog("STOMP 已连接，发送 Agent hello");
                 session.subscribe("/topic/agent/" + deviceId + "/events", new ServerEventHandler());
                 session.send("/app/agent/hello", new AgentHelloMessage(
@@ -80,7 +104,7 @@ public class AgentConnectionClient {
                         deviceId,
                         deviceName,
                         authorizedDirectory,
-                        "0.1.3",
+                        CLIENT_VERSION,
                         Instant.now().toString()
                 ));
                 startHeartbeat();
@@ -88,18 +112,28 @@ public class AgentConnectionClient {
 
             @Override
             public void handleException(StompSession session, StompCommand command, StompHeaders headers, byte[] payload, Throwable exception) {
+                connectionAttemptInFlight = false;
                 listener.onLog("连接异常：" + exception.getMessage());
             }
 
             @Override
             public void handleTransportError(StompSession session, Throwable exception) {
-                listener.onDisconnected("传输断开：" + exception.getMessage());
-                stopHeartbeat();
+                connectionAttemptInFlight = false;
+                handleUnexpectedDisconnect("传输断开：" + exception.getMessage());
+            }
+        }).whenComplete((session, throwable) -> {
+            if (throwable != null) {
+                connectionAttemptInFlight = false;
+                listener.onLog("连接 relay-server 失败：" + throwable.getMessage());
+                scheduleReconnect();
             }
         });
     }
 
-    public void disconnect() {
+    public synchronized void disconnect() {
+        manualDisconnect = true;
+        connectionAttemptInFlight = false;
+        cancelReconnect();
         stopHeartbeat();
         if (stompSession != null && stompSession.isConnected()) {
             stompSession.disconnect();
@@ -120,6 +154,60 @@ public class AgentConnectionClient {
     public void shutdown() {
         disconnect();
         heartbeatExecutor.shutdownNow();
+    }
+
+    private synchronized void handleUnexpectedDisconnect(String reason) {
+        stopHeartbeat();
+        closeStaleResources();
+        sessionId = null;
+        listener.onDisconnected(reason + "；Agent 将自动重连");
+        scheduleReconnect();
+    }
+
+    private synchronized void scheduleReconnect() {
+        if (manualDisconnect || reconnectTask != null) {
+            return;
+        }
+        reconnectTask = heartbeatExecutor.scheduleWithFixedDelay(() -> {
+            if (manualDisconnect || isConnected()) {
+                cancelReconnect();
+                return;
+            }
+            if (connectionAttemptInFlight) {
+                return;
+            }
+            if (lastServerUrl == null || lastAuthorizedDirectory == null) {
+                return;
+            }
+            try {
+                listener.onLog("正在自动重连 relay-server...");
+                doConnect(lastServerUrl, lastAuthorizedDirectory);
+            } catch (RuntimeException exception) {
+                listener.onLog("自动重连失败：" + exception.getMessage());
+            }
+        }, RECONNECT_DELAY_SECONDS, RECONNECT_DELAY_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private synchronized void cancelReconnect() {
+        if (reconnectTask != null) {
+            reconnectTask.cancel(false);
+            reconnectTask = null;
+        }
+    }
+
+    private synchronized void closeStaleResources() {
+        if (stompSession != null && stompSession.isConnected()) {
+            stompSession.disconnect();
+        }
+        stompSession = null;
+        if (taskExecutor != null) {
+            taskExecutor.close();
+            taskExecutor = null;
+        }
+        if (stompClient != null) {
+            stompClient.stop();
+            stompClient = null;
+        }
     }
 
     private void startHeartbeat() {
