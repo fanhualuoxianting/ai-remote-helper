@@ -22,4 +22,4 @@ spring:
       port: ${AIRH_REDIS_PORT:16379}
 
 airh:
-  version: 0.1.4
+  version: 0.1.5

@@ -130,7 +130,7 @@ $env:AIRH_COMMAND_OUTPUT_CHARSET='UTF-8'
 
 ## 当前版本
 
-最新公开版本：`v0.1.4`
+当前源码版本：`v0.1.5`（UI polish）。最新可下载安装包以 GitHub Releases 页面为准。
 
 Release 下载：[https://github.com/fanhualuoxianting/ai-remote-helper/releases/latest](https://github.com/fanhualuoxianting/ai-remote-helper/releases/latest)
 

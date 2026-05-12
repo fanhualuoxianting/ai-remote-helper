@@ -11,7 +11,7 @@ AI Remote Helper is currently a public MVP focused on Windows LAN-assisted AI co
 - Workspace sandboxing, path traversal protection, sensitive-file protection, and command risk detection.
 - PostgreSQL-backed task, audit, file-change, and help-request persistence with Redis-backed online/session cache.
 - LAN packaging scripts for Windows app-image distribution and GitHub Release artifacts.
-- Versioned releases through `v0.1.4`, including task timeout handling, Agent auto-reconnect, offline status prompts, link self-test, and Chinese command output decoding.
+- Versioned releases through `v0.1.5`, including LAN stability fixes, task timeout handling, Agent auto-reconnect, offline status prompts, link self-test, Chinese command output decoding, and JavaFX UI polish.
 
 ## In Progress
 

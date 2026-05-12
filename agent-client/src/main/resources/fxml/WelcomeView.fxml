@@ -7,112 +7,104 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.SVGPath?>
 
 <BorderPane styleClass="welcome-page" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.airh.agent.ui.WelcomeController">
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="24" styleClass="dashboard-hero">
-            <VBox spacing="8" HBox.hgrow="ALWAYS">
-                <HBox spacing="10">
+        <HBox alignment="CENTER_LEFT" spacing="22" styleClass="dashboard-hero">
+            <VBox spacing="7" HBox.hgrow="ALWAYS">
+                <HBox alignment="CENTER_LEFT" spacing="10">
                     <Label styleClass="mode-pill" text="LAN Edition" />
                     <Label styleClass="hero-kicker" text="授权目录内的远程开发协助" />
                 </HBox>
                 <Label styleClass="app-title" text="AI Remote Helper" />
-                <Label styleClass="app-subtitle" text="把远程协助做成可见、可控、可随时断开的桌面工作台。" wrapText="true" />
+                <Label styleClass="app-subtitle" text="为课堂项目、结对排障和 AI 协助准备的可见桌面工作台。" wrapText="true" />
             </VBox>
-            <VBox spacing="8" minWidth="220" styleClass="hero-status-card">
+            <VBox spacing="7" minWidth="230" styleClass="hero-status-card">
                 <Label styleClass="field-name" text="当前工作模式" />
-                <Label styleClass="status-pill" text="LAN Mode / Local Only" />
-                <Label styleClass="muted-text" text="版本 0.1.4，不隐藏运行。" wrapText="true" />
+                <Label styleClass="mode-pill" text="LAN Mode / Local Only" />
+                <Label styleClass="muted-text" text="版本 0.1.5，默认不隐藏运行、不接管系统。" wrapText="true" />
             </VBox>
         </HBox>
     </top>
 
     <center>
-        <VBox spacing="18" styleClass="dashboard-body">
-            <HBox fillHeight="false" spacing="20" styleClass="dashboard-actions">
-                <VBox fx:id="openAssistedCardButton" id="openAssistedCardButton" spacing="14" styleClass="entry-card" HBox.hgrow="ALWAYS">
-                    <HBox spacing="12">
-                        <Label styleClass="entry-icon" text="1" />
-                        <Label styleClass="role-tag" text="被协助者" />
+        <VBox spacing="16" styleClass="dashboard-body">
+            <HBox fillHeight="false" spacing="18" styleClass="dashboard-actions">
+                <VBox fx:id="openAssistedCardButton" id="openAssistedCardButton" spacing="13" styleClass="entry-card" HBox.hgrow="ALWAYS">
+                    <HBox alignment="CENTER_LEFT" spacing="10">
+                        <StackPane styleClass="icon-box">
+                            <SVGPath styleClass="icon-svg-blue" content="M12 3l7 4v5c0 4.1-2.4 7.6-7 9-4.6-1.4-7-4.9-7-9V7l7-4zm-2 7v2h4v-2h-4zm0 4v2h4v-2h-4z" />
+                        </StackPane>
+                        <VBox spacing="2" HBox.hgrow="ALWAYS">
+                            <Label styleClass="role-tag" text="被协助者" />
+                            <Label styleClass="muted-text" text="在自己的电脑上授权目录并生成连接码" wrapText="true" />
+                        </VBox>
                     </HBox>
                     <Label styleClass="entry-title" text="我需要别人帮忙" />
-                    <Label styleClass="entry-copy" text="选择本机项目目录，测试协助者局域网地址，连接成功后生成连接码。" wrapText="true" />
+                    <Label styleClass="entry-copy" text="选择项目目录、测试协助者地址、生成连接码。所有远程动作都会在本机窗口里显示。" wrapText="true" />
                     <GridPane hgap="8" vgap="8">
-                        <Label styleClass="mini-step" text="选择授权目录" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                        <Label styleClass="mini-step" text="测试局域网连接" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                        <Label styleClass="mini-step" text="授权目录" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                        <Label styleClass="mini-step" text="测试连接" GridPane.columnIndex="1" GridPane.rowIndex="0" />
                         <Label styleClass="mini-step" text="生成连接码" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                        <Label styleClass="mini-step" text="操作实时可见" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                        <Label styleClass="mini-step" text="实时日志" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                     </GridPane>
-                    <HBox spacing="10">
-                        <Button fx:id="openAssistedButton" onAction="#openAssisted" styleClass="primary-button" text="开始接受协助" HBox.hgrow="ALWAYS" maxWidth="Infinity" />
-                        <Button onAction="#openAssisted" styleClass="ghost-button" text="选择目录" />
-                    </HBox>
+                    <Button fx:id="openAssistedButton" maxWidth="Infinity" onAction="#openAssisted" styleClass="primary-button" text="开始接受协助" />
                 </VBox>
 
-                <VBox fx:id="openControllerCardButton" id="openControllerCardButton" spacing="14" styleClass="entry-card" HBox.hgrow="ALWAYS">
-                    <HBox spacing="12">
-                        <Label styleClass="entry-icon-green" text="2" />
-                        <Label styleClass="role-tag-green" text="协助者" />
+                <VBox fx:id="openControllerCardButton" id="openControllerCardButton" spacing="13" styleClass="entry-card" HBox.hgrow="ALWAYS">
+                    <HBox alignment="CENTER_LEFT" spacing="10">
+                        <StackPane styleClass="icon-box-green">
+                            <SVGPath styleClass="icon-svg-green" content="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H14v2h3v2H7v-2h3v-2H6.5A2.5 2.5 0 0 1 4 13.5v-7zm3 1.2v2h10v-2H7zm0 4v1.8h6v-1.8H7z" />
+                        </StackPane>
+                        <VBox spacing="2" HBox.hgrow="ALWAYS">
+                            <Label styleClass="role-tag-green" text="协助者" />
+                            <Label styleClass="muted-text" text="连接对方授权 Agent 并审核 AI 协助" wrapText="true" />
+                        </VBox>
                     </HBox>
                     <Label styleClass="entry-title" text="我要帮别人处理项目" />
-                    <Label styleClass="entry-copy" text="连接对方主动授权的 Agent，在工作台中浏览文件、执行命令并查看结果。" wrapText="true" />
+                    <Label styleClass="entry-copy" text="输入连接码进入工作台，浏览授权目录、执行命令、查看 AI 任务和结果。" wrapText="true" />
                     <GridPane hgap="8" vgap="8">
-                        <Label styleClass="mini-step-green" text="连接远程设备" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                        <Label styleClass="mini-step-green" text="浏览授权目录" GridPane.columnIndex="1" GridPane.rowIndex="0" />
-                        <Label styleClass="mini-step-green" text="执行命令" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                        <Label styleClass="mini-step-green" text="查看任务输出" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                        <Label styleClass="mini-step-green" text="连接设备" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                        <Label styleClass="mini-step-green" text="文件浏览" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                        <Label styleClass="mini-step-green" text="命令执行" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                        <Label styleClass="mini-step-green" text="AI 协助" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                     </GridPane>
-                    <HBox spacing="10">
-                        <Button fx:id="openControllerButton" onAction="#openController" styleClass="success-button" text="进入协助工作台" HBox.hgrow="ALWAYS" maxWidth="Infinity" />
-                        <Button onAction="#openController" styleClass="ghost-button" text="打开 Tab" />
-                    </HBox>
+                    <Button fx:id="openControllerButton" maxWidth="Infinity" onAction="#openController" styleClass="success-button" text="进入协助工作台" />
                 </VBox>
             </HBox>
 
             <HBox fillHeight="false" spacing="12" styleClass="dashboard-footer">
-                <VBox spacing="6" styleClass="small-card" HBox.hgrow="ALWAYS">
-                    <Label styleClass="small-icon" text="DIR" />
-                    <Label styleClass="section-title" text="授权目录" />
-                    <Label styleClass="muted-text" text="所有文件和命令 cwd 都限制在用户选择的目录内。" wrapText="true" />
+                <VBox spacing="8" styleClass="small-card" HBox.hgrow="ALWAYS">
+                    <StackPane styleClass="icon-box">
+                        <SVGPath styleClass="icon-svg-blue" content="M3 6.5C3 5.12 4.12 4 5.5 4h4.2l1.6 1.8h7.2C19.88 5.8 21 6.92 21 8.3v8.2c0 1.38-1.12 2.5-2.5 2.5h-13C4.12 19 3 17.88 3 16.5v-10z" />
+                    </StackPane>
+                    <Label styleClass="section-title" text="授权边界" />
+                    <Label styleClass="muted-text" text="文件读写和命令 cwd 都限制在用户主动选择的目录内；不提权、不开机自启、不读取系统凭证。" wrapText="true" />
                 </VBox>
-                <VBox spacing="6" styleClass="small-card" HBox.hgrow="ALWAYS">
-                    <Label styleClass="small-icon" text="LIVE" />
-                    <Label styleClass="section-title" text="实时可见" />
-                    <Label styleClass="muted-text" text="被协助端窗口始终可见，操作日志实时显示。" wrapText="true" />
-                </VBox>
-                <VBox spacing="6" styleClass="small-card" HBox.hgrow="ALWAYS">
-                    <Label styleClass="small-icon" text="STOP" />
-                    <Label styleClass="section-title" text="随时断开" />
-                    <Label styleClass="muted-text" text="用户可暂停或一键断开，不做隐藏运行。" wrapText="true" />
-                </VBox>
-                <VBox spacing="6" styleClass="small-card" HBox.hgrow="ALWAYS">
-                    <Label styleClass="small-icon" text="SAFE" />
-                    <Label styleClass="section-title" text="不隐藏运行" />
-                    <Label styleClass="muted-text" text="不注册服务、不开机自启、不请求管理员权限。" wrapText="true" />
+                <VBox spacing="8" styleClass="small-card" HBox.hgrow="ALWAYS">
+                    <StackPane styleClass="icon-box-green">
+                        <SVGPath styleClass="icon-svg-green" content="M12 5C6.9 5 3.1 8.2 2 12c1.1 3.8 4.9 7 10 7s8.9-3.2 10-7c-1.1-3.8-4.9-7-10-7zm0 10.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4z" />
+                    </StackPane>
+                    <Label styleClass="section-title" text="用户可控" />
+                    <Label styleClass="muted-text" text="被协助端窗口始终可见，连接、任务和日志都可追踪；用户可以暂停或一键断开。" wrapText="true" />
                 </VBox>
             </HBox>
 
-            <HBox fillHeight="true" spacing="16" VBox.vgrow="ALWAYS">
-                <VBox spacing="12" styleClass="stretch-panel" HBox.hgrow="ALWAYS">
-                    <Label styleClass="section-title" text="推荐使用流程" />
-                    <GridPane hgap="10" vgap="10">
-                        <Label styleClass="flow-step" text="1. 被协助者选择项目目录" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                        <Label styleClass="flow-step" text="2. 测试局域网地址" GridPane.columnIndex="1" GridPane.rowIndex="0" />
-                        <Label styleClass="flow-step" text="3. 生成并发送连接码" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                        <Label styleClass="flow-step" text="4. 协助者进入工作台处理任务" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                    </GridPane>
+            <HBox alignment="CENTER_LEFT" fillHeight="false" spacing="14" styleClass="info-callout">
+                <VBox spacing="4" HBox.hgrow="ALWAYS">
+                    <Label styleClass="section-title" text="推荐流程" />
+                    <Label styleClass="muted-text" text="被协助者选择目录并连接 relay，协助者输入连接码进入工作台，再按需审核 AI 或手动执行任务。" wrapText="true" />
                 </VBox>
-                <VBox spacing="10" minWidth="320" styleClass="stretch-panel">
-                    <Label styleClass="section-title" text="当前版本边界" />
-                    <Label styleClass="list-line-muted" text="局域网优先，不做公网穿透" wrapText="true" />
-                    <Label styleClass="list-line-muted" text="高级调试默认折叠" wrapText="true" />
-                    <Label styleClass="list-line-muted" text="所有远程动作受授权目录限制" wrapText="true" />
-                </VBox>
+                <Label styleClass="list-line-muted" text="LAN 优先" />
+                <Label styleClass="list-line-muted" text="高级调试默认折叠" />
+                <Label styleClass="list-line-muted" text="所有动作受授权目录限制" />
             </HBox>
         </VBox>
     </center>
     <padding>
-        <Insets bottom="24" left="28" right="28" top="24" />
+        <Insets bottom="22" left="24" right="24" top="22" />
     </padding>
 </BorderPane>

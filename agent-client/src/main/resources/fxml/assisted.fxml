@@ -14,42 +14,40 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Priority?>
-<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane fx:id="root" styleClass="embedded-page" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.airh.agent.ui.AssistedController">
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="16" styleClass="compact-header">
-            <VBox spacing="3" HBox.hgrow="ALWAYS">
+        <HBox alignment="CENTER_LEFT" spacing="10" styleClass="compact-header">
+            <VBox minWidth="0" spacing="3" HBox.hgrow="ALWAYS">
                 <Label styleClass="page-title" text="我需要别人帮忙" />
-                <Label styleClass="section-caption" text="选择授权目录，测试局域网连接，生成连接码并实时查看所有远程操作。" />
+                <Label styleClass="section-caption" text="授权目录、连接协助者、提交需求和查看日志都在这个可见窗口里完成。" wrapText="true" />
             </VBox>
-            <Label styleClass="field-name" text="当前状态" />
             <Label fx:id="statusLabel" styleClass="status-pill" text="未连接" />
             <Label styleClass="mode-pill" text="LAN Mode" />
             <padding>
-                <Insets bottom="16" left="24" right="24" top="18" />
+                <Insets bottom="12" left="16" right="16" top="14" />
             </padding>
         </HBox>
     </top>
 
     <center>
-        <SplitPane dividerPositions="0.66" styleClass="workspace-split">
+        <SplitPane dividerPositions="0.70" styleClass="workspace-split">
             <items>
-                <BorderPane minWidth="650" styleClass="workspace-main">
+                <BorderPane minWidth="500" styleClass="workspace-main">
                     <top>
                         <HBox spacing="10" styleClass="step-bar">
-                            <VBox alignment="CENTER" spacing="4" HBox.hgrow="ALWAYS">
+                            <VBox alignment="CENTER" spacing="3" HBox.hgrow="ALWAYS">
                                 <Label fx:id="step1Circle" styleClass="step-circle" text="1" />
                                 <Label styleClass="step-label" text="授权目录" />
                                 <Label fx:id="step1Status" styleClass="step-status" text="未完成" />
                             </VBox>
-                            <VBox alignment="CENTER" spacing="4" HBox.hgrow="ALWAYS">
+                            <VBox alignment="CENTER" spacing="3" HBox.hgrow="ALWAYS">
                                 <Label fx:id="step2Circle" styleClass="step-circle" text="2" />
                                 <Label styleClass="step-label" text="连接协助者" />
                                 <Label fx:id="step2Status" styleClass="step-status" text="未完成" />
                             </VBox>
-                            <VBox alignment="CENTER" spacing="4" HBox.hgrow="ALWAYS">
+                            <VBox alignment="CENTER" spacing="3" HBox.hgrow="ALWAYS">
                                 <Label fx:id="step3Circle" styleClass="step-circle" text="3" />
                                 <Label styleClass="step-label" text="发送连接码" />
                                 <Label fx:id="step3Status" styleClass="step-status" text="未完成" />
@@ -61,101 +59,131 @@
                         <TabPane tabClosingPolicy="UNAVAILABLE" styleClass="workbench-tabs">
                             <tabs>
                                 <Tab text="连接设置">
-                                    <VBox spacing="14" styleClass="tab-surface">
-                                        <HBox fillHeight="false" spacing="14">
-                                        <VBox spacing="12" maxWidth="Infinity" styleClass="panel" HBox.hgrow="ALWAYS">
-                                            <Label styleClass="section-title" text="授权目录" />
-                                            <Label styleClass="muted-text" text="选择一个项目目录后，文件读取、写入和命令 cwd 都会被限制在这里。" wrapText="true" />
-                                            <Label fx:id="authorizedDirectoryLabel" styleClass="value-text" text="未选择" wrapText="true" />
-                                            <Label fx:id="authDirWarning" styleClass="warning-text" text="请先选择一个项目目录。AI 只能访问这个目录及其子目录。" wrapText="true" />
-                                            <Button fx:id="chooseDirectoryButton" onAction="#chooseDirectory" styleClass="primary-button" text="选择授权目录" />
-                                        </VBox>
+                                    <BorderPane styleClass="tab-surface">
+                                        <center>
+                                            <VBox spacing="14">
+                                                <HBox fillHeight="false" spacing="14">
+                                                    <VBox spacing="11" maxWidth="Infinity" styleClass="panel" HBox.hgrow="ALWAYS">
+                                                        <Label styleClass="section-title-large" text="授权目录" />
+                                                        <Label styleClass="muted-text" text="选择一个项目目录后，文件读写和命令 cwd 都会被限制在这里。" wrapText="true" />
+                                                        <Label fx:id="authorizedDirectoryLabel" styleClass="value-strong" text="未选择" wrapText="true" />
+                                                        <Label fx:id="authDirWarning" styleClass="warning-text" text="请先选择一个项目目录。AI 只能访问这个目录及其子目录。" wrapText="true" />
+                                                        <Button fx:id="chooseDirectoryButton" onAction="#chooseDirectory" styleClass="primary-button" text="选择授权目录" />
+                                                    </VBox>
 
-                                        <VBox spacing="12" maxWidth="Infinity" styleClass="panel" HBox.hgrow="ALWAYS">
-                                            <Label styleClass="section-title" text="局域网连接" />
-                                            <HBox spacing="12">
-                                                <RadioButton fx:id="lanModeRadio" selected="true" text="局域网连接" />
-                                                <RadioButton fx:id="officialModeRadio" disable="true" text="官方服务器（后续）" />
-                                                <RadioButton fx:id="customModeRadio" text="自定义服务器" />
-                                            </HBox>
-                                            <GridPane hgap="10" vgap="10">
-                                                <Label styleClass="field-name" text="协助者 IP" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                                                <TextField fx:id="assistantIpField" promptText="例如 192.168.1.8" GridPane.columnIndex="1" GridPane.rowIndex="0" />
-                                                <Label styleClass="field-name" text="端口" GridPane.columnIndex="2" GridPane.rowIndex="0" />
-                                                <TextField fx:id="assistantPortField" prefWidth="90" text="8080" GridPane.columnIndex="3" GridPane.rowIndex="0" />
-                                                <Button fx:id="testConnectionButton" onAction="#testConnection" styleClass="primary-button" text="测试连接" GridPane.columnIndex="4" GridPane.rowIndex="0" />
-                                                <Label styleClass="field-name" text="服务器地址" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                                                <TextField fx:id="serverUrlField" editable="false" GridPane.columnIndex="1" GridPane.columnSpan="4" GridPane.rowIndex="1" />
-                                                <Label styleClass="field-name" text="WebSocket" GridPane.columnIndex="0" GridPane.rowIndex="2" />
-                                                <Label fx:id="generatedWebsocketLabel" styleClass="value-text" wrapText="true" GridPane.columnIndex="1" GridPane.columnSpan="4" GridPane.rowIndex="2" />
-                                                <Label fx:id="localhostWarningLabel" styleClass="localhost-alert" text="localhost 只代表你自己的电脑。连接协助者电脑时，请填写协助者的局域网 IP。" visible="false" wrapText="true" GridPane.columnIndex="1" GridPane.columnSpan="4" GridPane.rowIndex="3" />
-                                                <Label fx:id="connectionTestResultLabel" styleClass="value-text" wrapText="true" GridPane.columnIndex="1" GridPane.columnSpan="4" GridPane.rowIndex="4" />
-                                            </GridPane>
-                                            <HBox spacing="10">
-                                                <Button fx:id="connectButton" onAction="#connect" styleClass="success-button" text="连接" />
-                                                <Button fx:id="pauseButton" onAction="#pauseExecution" styleClass="warning-button" text="暂停执行" />
-                                                <Button fx:id="disconnectButton" onAction="#disconnect" styleClass="danger-button" text="断开连接" />
-                                            </HBox>
-                                        </VBox>
-                                        </HBox>
-                                        <VBox spacing="8" styleClass="inline-note">
-                                            <Label styleClass="field-name" text="目录状态" />
-                                            <Label styleClass="muted-text" text="完成目录授权和连接测试后，切到“连接码”标签页复制连接码给协助者。" wrapText="true" />
-                                        </VBox>
-                                    </VBox>
+                                                    <VBox spacing="11" maxWidth="Infinity" styleClass="panel" HBox.hgrow="ALWAYS">
+                                                        <Label styleClass="section-title-large" text="局域网连接" />
+                                                        <HBox spacing="10">
+                                                            <RadioButton fx:id="lanModeRadio" selected="true" text="局域网" />
+                                                            <RadioButton fx:id="officialModeRadio" disable="true" text="官方服务器（后续）" />
+                                                            <RadioButton fx:id="customModeRadio" text="自定义" />
+                                                        </HBox>
+                                                        <GridPane hgap="10" vgap="10">
+                                                            <Label styleClass="field-name" text="协助者 IP" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                                                            <TextField fx:id="assistantIpField" promptText="例如 192.168.1.8" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0" />
+                                                            <Label styleClass="field-name" text="端口" GridPane.columnIndex="2" GridPane.rowIndex="0" />
+                                                            <TextField fx:id="assistantPortField" prefWidth="78" text="8080" GridPane.columnIndex="3" GridPane.rowIndex="0" />
+                                                            <Button fx:id="testConnectionButton" onAction="#testConnection" styleClass="primary-button" text="测试" GridPane.columnIndex="4" GridPane.rowIndex="0" />
+                                                            <Label styleClass="field-name" text="地址" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                                                            <TextField fx:id="serverUrlField" editable="false" GridPane.columnIndex="1" GridPane.columnSpan="4" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
+                                                            <Label styleClass="field-name" text="WS" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                                                            <Label fx:id="generatedWebsocketLabel" styleClass="value-text" wrapText="true" GridPane.columnIndex="1" GridPane.columnSpan="4" GridPane.rowIndex="2" />
+                                                            <Label fx:id="localhostWarningLabel" styleClass="localhost-alert" text="localhost 只代表你自己的电脑。连接协助者电脑时，请填写协助者的局域网 IP。" visible="false" wrapText="true" GridPane.columnIndex="1" GridPane.columnSpan="4" GridPane.rowIndex="3" />
+                                                            <Label fx:id="connectionTestResultLabel" styleClass="value-text" wrapText="true" GridPane.columnIndex="1" GridPane.columnSpan="4" GridPane.rowIndex="4" />
+                                                        </GridPane>
+                                                        <HBox spacing="10">
+                                                            <Button fx:id="connectButton" onAction="#connect" styleClass="success-button" text="连接" />
+                                                            <Button fx:id="pauseButton" onAction="#pauseExecution" styleClass="warning-button" text="暂停执行" />
+                                                            <Button fx:id="disconnectButton" onAction="#disconnect" styleClass="danger-button" text="断开连接" />
+                                                        </HBox>
+                                                    </VBox>
+                                                </HBox>
+
+                                                <HBox alignment="CENTER_LEFT" fillHeight="false" spacing="12" styleClass="info-callout">
+                                                    <VBox spacing="3" HBox.hgrow="ALWAYS">
+                                                        <Label styleClass="section-title" text="下一步" />
+                                                        <Label styleClass="muted-text" text="完成目录授权和连接测试后，切到“连接码”标签页复制连接码给协助者。" wrapText="true" />
+                                                    </VBox>
+                                                    <Label styleClass="flow-step" text="目录授权" />
+                                                    <Label styleClass="flow-step" text="连接测试" />
+                                                    <Label styleClass="flow-step-green" text="复制连接码" />
+                                                </HBox>
+
+                                                <HBox fillHeight="false" spacing="12">
+                                                    <VBox spacing="6" styleClass="inline-note" HBox.hgrow="ALWAYS">
+                                                        <Label styleClass="section-title" text="本机可见" />
+                                                        <Label styleClass="muted-text" text="每次文件读取、写入和命令执行都会出现在日志与结果里。" wrapText="true" />
+                                                    </VBox>
+                                                    <VBox spacing="6" styleClass="inline-note" HBox.hgrow="ALWAYS">
+                                                        <Label styleClass="section-title" text="受限目录" />
+                                                        <Label styleClass="muted-text" text="协助者无法越过你选择的授权目录。" wrapText="true" />
+                                                    </VBox>
+                                                    <VBox spacing="6" styleClass="inline-note" HBox.hgrow="ALWAYS">
+                                                        <Label styleClass="section-title" text="需求审核" />
+                                                        <Label styleClass="muted-text" text="你可以像聊天一样提交需求，由协助者确认后再交给 AI。" wrapText="true" />
+                                                    </VBox>
+                                                </HBox>
+                                            </VBox>
+                                        </center>
+                                    </BorderPane>
                                 </Tab>
 
                                 <Tab text="连接码">
-                                    <VBox spacing="16" styleClass="tab-surface">
-                                        <HBox alignment="CENTER_LEFT" spacing="12">
-                                            <VBox spacing="4" HBox.hgrow="ALWAYS">
-                                                <Label styleClass="section-title" text="连接码" />
-                                                <Label styleClass="muted-text" text="连接成功后，把这个连接码发给协助者。" wrapText="true" />
+                                    <BorderPane styleClass="tab-surface">
+                                        <top>
+                                            <HBox alignment="CENTER_LEFT" spacing="12">
+                                                <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                                    <Label styleClass="section-title-large" text="连接码" />
+                                                    <Label styleClass="muted-text" text="连接成功后，把这个连接码发给可信协助者。" wrapText="true" />
+                                                </VBox>
+                                                <Button fx:id="copyCodeButton" onAction="#copyConnectionCode" styleClass="ghost-button" text="复制连接码" />
+                                            </HBox>
+                                        </top>
+                                        <center>
+                                            <VBox alignment="CENTER" spacing="12" styleClass="connection-code-box">
+                                                <Label fx:id="connectionCodeLabel" styleClass="connection-code-big" text="未生成" />
+                                                <Label maxWidth="520" styleClass="muted-text" text="连接码只用于当前会话。你可以随时断开连接，协助者无法绕过授权目录。" textAlignment="CENTER" wrapText="true" />
                                             </VBox>
-                                            <Button fx:id="copyCodeButton" onAction="#copyConnectionCode" styleClass="ghost-button" text="复制连接码" />
-                                        </HBox>
-                                        <Label fx:id="connectionCodeLabel" styleClass="connection-code-big" text="未生成" />
-                                    </VBox>
+                                        </center>
+                                    </BorderPane>
                                 </Tab>
 
                                 <Tab text="提交需求">
                                     <BorderPane styleClass="tab-surface">
                                         <top>
-                                            <VBox spacing="8">
-                                                <Label styleClass="section-title" text="像和 AI 对话一样提交需求" />
+                                            <VBox spacing="6">
+                                                <Label styleClass="section-title-large" text="像和 AI 对话一样提交需求" />
                                                 <Label styleClass="muted-text" text="你的需求会先提交给协助者审核；协助者确认后，才会在他那边拉起 AI 开始处理。" wrapText="true" />
                                             </VBox>
                                         </top>
                                         <center>
-                                            <SplitPane dividerPositions="0.48" styleClass="inner-split">
-                                                <items>
-                                                    <VBox spacing="10">
-                                                        <TextArea fx:id="helpRequestInputArea" promptText="例如：帮我看一下这个项目为什么启动失败，并尽量修好。请先说明你会做什么。" styleClass="chat-input-area" wrapText="true" VBox.vgrow="ALWAYS" />
-                                                        <HBox alignment="CENTER_LEFT" spacing="10">
-                                                            <Button fx:id="submitHelpRequestButton" onAction="#submitHelpRequest" styleClass="primary-button" text="提交给协助者审核" />
-                                                            <Button fx:id="refreshHelpRequestsButton" onAction="#refreshHelpRequests" styleClass="ghost-button" text="刷新状态" />
-                                                        </HBox>
-                                                        <Label fx:id="helpRequestStatusLabel" styleClass="value-text" text="连接成功后才能提交需求。" wrapText="true" />
-                                                    </VBox>
-                                                    <VBox spacing="10">
-                                                        <Label styleClass="section-title" text="需求历史" />
-                                                        <TextArea fx:id="helpRequestHistoryArea" editable="false" promptText="这里会显示你的需求状态：待审核、已批准、已拒绝或 AI 已启动。" styleClass="mono-area" wrapText="true" VBox.vgrow="ALWAYS" />
-                                                    </VBox>
-                                                </items>
-                                            </SplitPane>
+                                            <HBox fillHeight="true" spacing="14" styleClass="request-workspace">
+                                                <VBox spacing="10" styleClass="request-panel" HBox.hgrow="ALWAYS">
+                                                    <TextArea fx:id="helpRequestInputArea" promptText="例如：帮我看一下这个项目为什么启动失败，并尽量修好。请先说明你会做什么。" styleClass="chat-input-area" wrapText="true" VBox.vgrow="ALWAYS" />
+                                                    <HBox alignment="CENTER_LEFT" spacing="10">
+                                                        <Button fx:id="submitHelpRequestButton" onAction="#submitHelpRequest" styleClass="primary-button" text="提交给协助者审核" />
+                                                        <Button fx:id="refreshHelpRequestsButton" onAction="#refreshHelpRequests" styleClass="ghost-button" text="刷新状态" />
+                                                    </HBox>
+                                                    <Label fx:id="helpRequestStatusLabel" styleClass="value-text" text="连接成功后才能提交需求。" wrapText="true" />
+                                                </VBox>
+                                                <VBox minWidth="300" prefWidth="330" spacing="10" styleClass="request-panel">
+                                                    <Label styleClass="section-title" text="需求历史" />
+                                                    <TextArea fx:id="helpRequestHistoryArea" editable="false" promptText="这里会显示你的需求状态：待审核、已批准、已拒绝或 AI 已启动。" styleClass="mono-area" wrapText="true" VBox.vgrow="ALWAYS" />
+                                                </VBox>
+                                            </HBox>
                                         </center>
                                     </BorderPane>
                                 </Tab>
 
                                 <Tab text="日志与结果">
-                                    <SplitPane dividerPositions="0.50" styleClass="inner-split">
+                                    <SplitPane dividerPositions="0.52" styleClass="inner-split">
                                         <items>
                                             <VBox spacing="10" styleClass="tab-surface">
-                                                <Label styleClass="section-title" text="实时操作记录" />
+                                                <Label styleClass="section-title-large" text="实时操作记录" />
                                                 <TextArea fx:id="logsArea" editable="false" promptText="连接后，这里会显示所有远程操作。" styleClass="mono-area" wrapText="true" VBox.vgrow="ALWAYS" />
                                             </VBox>
                                             <VBox spacing="10" styleClass="tab-surface">
-                                                <Label styleClass="section-title" text="最近任务结果" />
+                                                <Label styleClass="section-title-large" text="最近任务结果" />
                                                 <TextArea fx:id="taskResultArea" editable="false" promptText="这里会显示任务结果摘要。" styleClass="mono-area" wrapText="true" VBox.vgrow="ALWAYS" />
                                             </VBox>
                                         </items>
@@ -166,9 +194,9 @@
                     </center>
                 </BorderPane>
 
-                <VBox spacing="12" minWidth="320" prefWidth="340" styleClass="workspace-side">
-                    <VBox spacing="10" styleClass="summary-card">
-                        <Label styleClass="section-title" text="安全与权限" />
+                <VBox spacing="10" minWidth="252" prefWidth="292" styleClass="workspace-side">
+                    <VBox spacing="9" styleClass="summary-card">
+                        <Label styleClass="section-title-large" text="安全与权限" />
                         <Label styleClass="muted-text" text="协助者和 AI 只能在你手动选择的授权目录内工作。" wrapText="true" />
                         <CheckBox fx:id="readFilesCheck" selected="true" text="允许读取文件" wrapText="true" />
                         <CheckBox fx:id="writeFilesCheck" selected="true" text="允许修改文件" wrapText="true" />
@@ -177,8 +205,8 @@
                         <CheckBox fx:id="highRiskCheck" disable="true" text="高风险操作" wrapText="true" />
                     </VBox>
 
-                    <VBox spacing="9" styleClass="summary-card">
-                        <Label styleClass="section-title" text="会话状态" />
+                    <VBox spacing="8" styleClass="summary-card">
+                        <Label styleClass="section-title-large" text="会话状态" />
                         <Label styleClass="field-name" text="deviceId" />
                         <Label fx:id="deviceIdLabel" styleClass="value-text" text="-" wrapText="true" />
                         <Label styleClass="field-name" text="会话有效期" />
@@ -187,8 +215,8 @@
                         <Label fx:id="currentTaskLabel" styleClass="value-text" text="无" wrapText="true" />
                     </VBox>
 
-                    <VBox spacing="9" styleClass="summary-card">
-                        <Label styleClass="section-title" text="安全提示" />
+                    <VBox spacing="8" styleClass="summary-card">
+                        <Label styleClass="section-title-large" text="安全提示" />
                         <Label styleClass="safe-line" text="不会隐藏运行、不会提权、不会开机自启，所有操作实时可见。" wrapText="true" />
                     </VBox>
 
@@ -199,7 +227,7 @@
                 </VBox>
             </items>
             <BorderPane.margin>
-                <Insets bottom="18" left="24" right="24" top="0" />
+                <Insets bottom="14" left="12" right="12" top="0" />
             </BorderPane.margin>
         </SplitPane>
     </center>

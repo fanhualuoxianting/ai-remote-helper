@@ -112,6 +112,7 @@ public class AssistedController {
     @FXML
     private void initialize() {
         statusLabel.setText("未连接");
+        installStatusStyleBinding(statusLabel);
         connectionCodeLabel.setText("未生成");
         authorizedDirectoryLabel.setText("未选择");
         sessionExpiresLabel.setText("连接后由 relay-server 控制");
@@ -407,6 +408,39 @@ public class AssistedController {
         if (helpRequestStatusLabel != null) {
             helpRequestStatusLabel.setText(message);
         }
+    }
+
+    private void installStatusStyleBinding(Label label) {
+        if (label == null) {
+            return;
+        }
+        label.textProperty().addListener((observable, oldValue, newValue) -> applyStatusStyle(label, newValue));
+        applyStatusStyle(label, label.getText());
+    }
+
+    private void applyStatusStyle(Label label, String statusText) {
+        label.getStyleClass().removeAll("is-idle", "is-connecting", "is-connected", "is-warning", "is-error");
+        String statusClass = resolveStatusClass(statusText);
+        if (!label.getStyleClass().contains(statusClass)) {
+            label.getStyleClass().add(statusClass);
+        }
+    }
+
+    private String resolveStatusClass(String statusText) {
+        String text = statusText == null ? "" : statusText;
+        if (text.contains("失败") || text.contains("错误") || text.contains("离线") || text.contains("断开")) {
+            return "is-error";
+        }
+        if (text.contains("连接中") || text.contains("正在")) {
+            return "is-connecting";
+        }
+        if (text.contains("已连接") || text.contains("在线") || text.contains("成功")) {
+            return "is-connected";
+        }
+        if (text.contains("暂停")) {
+            return "is-warning";
+        }
+        return "is-idle";
     }
 
     private String errorMessage(Throwable throwable) {

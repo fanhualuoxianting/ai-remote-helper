@@ -2,6 +2,14 @@
 
 All notable changes to AI Remote Helper will be documented in this file.
 
+## 0.1.5 - UI polish
+
+- Refined the JavaFX visual system with lighter cards, clearer type hierarchy, compact buttons, and more desktop-app-like navigation.
+- Removed forced vertical stretching from the home, settings, and about information pages so sparse cards keep natural height.
+- Reworked assisted and helper workbench layouts to keep only logs, terminal-like output, and task result areas filling remaining space.
+- Replaced text-only dashboard badges with consistent JavaFX SVG icon badges.
+- Updated in-app version labels and LAN packaging defaults to `0.1.5`.
+
 ## 0.1.4 - LAN stability hotfix
 
 - Added relay-side timeout sweeping so stale `PENDING` / `RUNNING` tasks become `TIMEOUT` instead of hanging forever.

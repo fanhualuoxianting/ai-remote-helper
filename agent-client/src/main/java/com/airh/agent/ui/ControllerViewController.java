@@ -120,9 +120,11 @@ public class ControllerViewController {
         sessionIdLabel.setText("未连接");
         topStatusLabel.setText("未连接远程设备");
         deviceStatusLabel.setText("未连接");
+        installStatusStyleBinding(topStatusLabel);
+        installStatusStyleBinding(deviceStatusLabel);
         deviceIdLabel.setText("-");
         remoteDirectoryLabel.setText("-");
-        permissionsLabel.setText("读取文件、修改文件、执行命令受 Agent 授权目录和 safety 模块限制");
+        permissionsLabel.setText("文件与命令均受授权目录和安全模块限制");
         errorLabel.setText("");
         directAiStatusLabel.setText("连接远程设备后，可以直接在这里给 AI 下达远程协助目标。");
         initializeRunnerSelection();
@@ -708,6 +710,39 @@ public class ControllerViewController {
         return base;
     }
 
+    private void installStatusStyleBinding(Label label) {
+        if (label == null) {
+            return;
+        }
+        label.textProperty().addListener((observable, oldValue, newValue) -> applyStatusStyle(label, newValue));
+        applyStatusStyle(label, label.getText());
+    }
+
+    private void applyStatusStyle(Label label, String statusText) {
+        label.getStyleClass().removeAll("is-idle", "is-connecting", "is-connected", "is-warning", "is-error");
+        String statusClass = resolveStatusClass(statusText);
+        if (!label.getStyleClass().contains(statusClass)) {
+            label.getStyleClass().add(statusClass);
+        }
+    }
+
+    private String resolveStatusClass(String statusText) {
+        String text = statusText == null ? "" : statusText;
+        if (text.contains("失败") || text.contains("错误") || text.contains("离线") || text.contains("断开")) {
+            return "is-error";
+        }
+        if (text.contains("连接中") || text.contains("正在")) {
+            return "is-connecting";
+        }
+        if (text.contains("已连接") || text.contains("在线") || text.contains("成功")) {
+            return "is-connected";
+        }
+        if (text.contains("暂停")) {
+            return "is-warning";
+        }
+        return "is-idle";
+    }
+
     private CompletableFuture<String> send(HttpRequest request) {
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
@@ -796,13 +831,13 @@ public class ControllerViewController {
             aiRunnerModeLabel.setText("当前 Runner：" + runnerName);
         }
         if (launchDirectAiButton != null) {
-            launchDirectAiButton.setText("启动 " + runnerName);
+            launchDirectAiButton.setText("启动 AI");
         }
         if (approveHelpRequestButton != null) {
-            approveHelpRequestButton.setText("批准并启动 " + runnerName);
+            approveHelpRequestButton.setText("批准并启动");
         }
         if (relaunchAiButton != null) {
-            relaunchAiButton.setText("重新启动 " + runnerName);
+            relaunchAiButton.setText("重新启动");
         }
     }
 

@@ -7,33 +7,54 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.SVGPath?>
 
 <StackPane fx:id="root" styleClass="app-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.airh.agent.ui.MainShellController">
     <BorderPane fx:id="shellRoot" styleClass="app-root">
         <left>
-            <VBox prefWidth="232" spacing="20" styleClass="sidebar">
-                <VBox spacing="10" styleClass="brand-block">
+            <VBox prefWidth="212" spacing="16" styleClass="sidebar">
+                <VBox spacing="8" styleClass="brand-block">
                     <Label styleClass="sidebar-title" text="AI Remote Helper" wrapText="true" />
                     <Label styleClass="mode-badge" text="LAN Mode" />
                     <Label styleClass="sidebar-subtitle" text="可见、可控的远程协助" wrapText="true" />
                 </VBox>
 
-                <VBox spacing="9" styleClass="nav-list" VBox.vgrow="ALWAYS">
-                    <Button fx:id="homeNavButton" maxWidth="Infinity" onAction="#showHome" styleClass="nav-button" text="首页" />
-                    <Button fx:id="assistedNavButton" maxWidth="Infinity" onAction="#showAssisted" styleClass="nav-button" text="我需要帮忙" />
-                    <Button fx:id="controllerNavButton" maxWidth="Infinity" onAction="#showController" styleClass="nav-button" text="我要帮别人" />
-                    <Button fx:id="settingsNavButton" maxWidth="Infinity" onAction="#showSettings" styleClass="nav-button" text="设置" />
-                    <Button fx:id="aboutNavButton" maxWidth="Infinity" onAction="#showAbout" styleClass="nav-button" text="关于" />
+                <VBox spacing="8" styleClass="nav-list" VBox.vgrow="ALWAYS">
+                    <Button fx:id="homeNavButton" maxWidth="Infinity" onAction="#showHome" styleClass="nav-button" text="首页">
+                        <graphic>
+                            <SVGPath styleClass="nav-icon" content="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-8.5z" />
+                        </graphic>
+                    </Button>
+                    <Button fx:id="assistedNavButton" maxWidth="Infinity" onAction="#showAssisted" styleClass="nav-button" text="我需要帮忙">
+                        <graphic>
+                            <SVGPath styleClass="nav-icon" content="M12 3l7 4v5c0 4.1-2.4 7.6-7 9-4.6-1.4-7-4.9-7-9V7l7-4zm-2 7v2h4v-2h-4zm0 4v2h4v-2h-4z" />
+                        </graphic>
+                    </Button>
+                    <Button fx:id="controllerNavButton" maxWidth="Infinity" onAction="#showController" styleClass="nav-button" text="我要帮别人">
+                        <graphic>
+                            <SVGPath styleClass="nav-icon" content="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H14v2h3v2H7v-2h3v-2H6.5A2.5 2.5 0 0 1 4 13.5v-7zm3 1.2v2h10v-2H7zm0 4v1.8h6v-1.8H7z" />
+                        </graphic>
+                    </Button>
+                    <Button fx:id="settingsNavButton" maxWidth="Infinity" onAction="#showSettings" styleClass="nav-button" text="设置">
+                        <graphic>
+                            <SVGPath styleClass="nav-icon" content="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.2-2-3.5-2.2.9a7.6 7.6 0 0 0-2.6-1.5L14.3 3h-4.6l-.3 2.2a7.6 7.6 0 0 0-2.6 1.5l-2.2-.9-2 3.5 2 1.2a7.8 7.8 0 0 0 0 3l-2 1.2 2 3.5 2.2-.9a7.6 7.6 0 0 0 2.6 1.5l.3 2.2h4.6l.3-2.2a7.6 7.6 0 0 0 2.6-1.5l2.2.9 2-3.5-2-1.2zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" />
+                        </graphic>
+                    </Button>
+                    <Button fx:id="aboutNavButton" maxWidth="Infinity" onAction="#showAbout" styleClass="nav-button" text="关于">
+                        <graphic>
+                            <SVGPath styleClass="nav-icon" content="M11 10h2v7h-2v-7zm0-3h2v2h-2V7zm1-5a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
+                        </graphic>
+                    </Button>
                 </VBox>
 
                 <Region VBox.vgrow="ALWAYS" />
                 <VBox spacing="8" styleClass="sidebar-footer">
-                    <Label styleClass="sidebar-footer-title" text="当前工作模式" wrapText="true" />
-                    <Label styleClass="muted-text" text="局域网直连，不隐藏运行。" wrapText="true" />
-                    <Label styleClass="version-text" text="版本 0.1.4" />
+                    <Label styleClass="sidebar-footer-title" text="版本状态" wrapText="true" />
+                    <Label styleClass="version-text" text="版本 0.1.5" />
+                    <Label styleClass="muted-text" text="LAN Edition / 可见运行" wrapText="true" />
                 </VBox>
                 <padding>
-                    <Insets bottom="20" left="18" right="18" top="22" />
+                    <Insets bottom="16" left="14" right="14" top="18" />
                 </padding>
             </VBox>
         </left>

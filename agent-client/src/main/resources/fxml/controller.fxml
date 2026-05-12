@@ -15,31 +15,32 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Priority?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.SVGPath?>
 
 <BorderPane fx:id="root" styleClass="embedded-page" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.airh.agent.ui.ControllerViewController">
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="16" styleClass="compact-header">
-            <VBox spacing="3" HBox.hgrow="ALWAYS">
+        <HBox alignment="CENTER_LEFT" spacing="10" styleClass="compact-header">
+            <VBox minWidth="0" spacing="3" HBox.hgrow="ALWAYS">
                 <Label styleClass="page-title" text="我要帮别人处理项目" />
-                <Label styleClass="section-caption" text="连接远程设备，浏览授权目录，执行命令并查看结果。" />
+                <Label styleClass="section-caption" text="连接远程设备，审核需求，驱动 AI 或手动执行任务。" wrapText="true" />
             </VBox>
-            <Label styleClass="field-name" text="当前状态" />
             <Label fx:id="topStatusLabel" styleClass="status-pill" text="未连接远程设备" />
             <Label styleClass="mode-pill" text="LAN Mode" />
-            <Label fx:id="errorLabel" styleClass="danger-text" wrapText="true" />
+            <Label fx:id="errorLabel" maxWidth="220" styleClass="danger-text" wrapText="true" />
             <padding>
-                <Insets bottom="16" left="24" right="24" top="18" />
+                <Insets bottom="12" left="16" right="16" top="14" />
             </padding>
         </HBox>
     </top>
 
     <center>
-        <SplitPane dividerPositions="0.22,0.75" styleClass="workspace-split">
+        <SplitPane dividerPositions="0.23,0.78" styleClass="workspace-split">
             <items>
-                <VBox spacing="12" minWidth="280" prefWidth="290" styleClass="workspace-side">
+                <VBox spacing="10" minWidth="218" prefWidth="246" styleClass="workspace-side">
                     <VBox spacing="10" styleClass="panel">
-                        <Label styleClass="section-title" text="连接与会话" />
+                        <Label styleClass="section-title-large" text="连接与会话" />
                         <Label styleClass="field-name" text="relay-server" />
                         <TextField fx:id="relayUrlField" text="http://localhost:8080" />
                         <Label styleClass="field-name" text="连接码" />
@@ -48,8 +49,8 @@
                         <Button fx:id="selfTestButton" maxWidth="Infinity" onAction="#runLinkSelfTest" styleClass="primary-button" text="一键链路自检" />
                     </VBox>
 
-                    <VBox spacing="9" styleClass="panel">
-                        <Label styleClass="section-title" text="会话摘要" />
+                    <VBox spacing="8" styleClass="panel">
+                        <Label styleClass="section-title-large" text="会话摘要" />
                         <Label styleClass="field-name" text="sessionId" />
                         <Label fx:id="sessionIdLabel" styleClass="value-text" text="未连接" wrapText="true" />
                         <Label styleClass="field-name" text="设备状态" />
@@ -58,57 +59,51 @@
                         <Label styleClass="value-text" text="由对方 Agent 授权目录限制" wrapText="true" />
                     </VBox>
 
-                    <VBox spacing="9" styleClass="panel">
-                        <Label styleClass="section-title" text="快速提示" />
-                        <Label styleClass="muted-text" text="先连接远程设备，再在中间工作台选择文件、命令、输出或报告。所有任务仍由 relay-server 转发。" wrapText="true" />
+                    <VBox spacing="8" styleClass="inline-note">
+                        <Label styleClass="section-title" text="工作顺序" />
+                        <Label styleClass="muted-text" text="先做链路自检，再进入 AI、文件或命令页处理。" wrapText="true" />
                     </VBox>
                     <Region VBox.vgrow="ALWAYS" />
                 </VBox>
 
-                <BorderPane minWidth="520" styleClass="workspace-main">
+                <BorderPane minWidth="360" styleClass="workspace-main">
                     <center>
                         <TabPane tabClosingPolicy="UNAVAILABLE" styleClass="workbench-tabs">
                             <tabs>
                                 <Tab text="AI 协助">
                                     <BorderPane styleClass="tab-surface">
                                         <top>
-                                            <VBox spacing="8">
-                                                <Label styleClass="section-title" text="直接给 AI 下达远程协助目标" />
-                                                <Label styleClass="muted-text" text="这里是协助方自己的输入框。点击后会在本机打开一个可见 PowerShell/AI Runner 会话，由它通过 relay-server 操作对方授权目录。" wrapText="true" />
-                                                <HBox alignment="CENTER_LEFT" spacing="10">
+                                            <VBox spacing="7">
+                                                <Label styleClass="section-title-large" text="直接给 AI 下达远程协助目标" />
+                                                <Label styleClass="muted-text" text="这里是协助方自己的输入框。AI 会在可见 Runner 窗口中运行，并通过 relay-server 操作对方授权目录。" wrapText="true" />
+                                                <HBox alignment="CENTER_LEFT" spacing="8">
                                                     <Label styleClass="field-name" text="AI Runner" />
-                                                    <ComboBox fx:id="aiRunnerComboBox" onAction="#handleRunnerSelectionChanged" prefWidth="160" />
-                                                    <Label fx:id="aiRunnerModeLabel" styleClass="value-text" text="当前 Runner：Codex" wrapText="true" />
+                                                    <ComboBox fx:id="aiRunnerComboBox" onAction="#handleRunnerSelectionChanged" prefWidth="132" />
+                                                    <Label fx:id="aiRunnerModeLabel" styleClass="value-text" text="当前 Runner：Codex" wrapText="true" HBox.hgrow="ALWAYS" />
                                                 </HBox>
                                             </VBox>
                                         </top>
                                         <center>
-                                            <SplitPane dividerPositions="0.66" styleClass="inner-split">
-                                                <items>
-                                                    <VBox spacing="10">
-                                                        <TextArea fx:id="directAiRequestArea" promptText="例如：先看一下对方项目为什么启动失败，优先查看授权根目录、README、构建脚本和报错日志，再给出修复建议并尽量修好。" styleClass="chat-input-area" wrapText="true" VBox.vgrow="ALWAYS" />
-                                                        <HBox alignment="CENTER_LEFT" spacing="10">
-                                                            <Button fx:id="launchDirectAiButton" onAction="#launchDirectAiRequest" styleClass="primary-button" text="启动 Codex" />
-                                                            <Button fx:id="executeNextAiTaskButton" onAction="#executeNextAiTask" styleClass="success-button" text="执行下一条 AI 任务" />
-                                                            <Button fx:id="openAiRunFolderButton" onAction="#openAiRunFolder" styleClass="ghost-button" text="打开 AI 工作目录" />
-                                                            <Button fx:id="importSelectedHelpRequestButton" onAction="#importSelectedHelpRequest" styleClass="ghost-button" text="导入当前审核需求" />
-                                                        </HBox>
-                                                        <Label fx:id="directAiStatusLabel" styleClass="value-text" text="连接远程设备后，可以直接在这里给 AI 下达远程协助目标。" wrapText="true" />
+                                            <VBox spacing="10">
+                                                <TextArea fx:id="directAiRequestArea" promptText="例如：先看一下对方项目为什么启动失败，优先查看授权根目录、README、构建脚本和报错日志，再给出修复建议并尽量修好。" styleClass="chat-input-area" wrapText="true" VBox.vgrow="ALWAYS" />
+                                                <GridPane hgap="8" vgap="8">
+                                                    <Button fx:id="launchDirectAiButton" maxWidth="Infinity" onAction="#launchDirectAiRequest" styleClass="primary-button" text="启动 AI" GridPane.columnIndex="0" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0" />
+                                                    <Button fx:id="executeNextAiTaskButton" maxWidth="Infinity" onAction="#executeNextAiTask" styleClass="subtle-button" text="执行下一条" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0" />
+                                                    <Button fx:id="openAiRunFolderButton" maxWidth="Infinity" onAction="#openAiRunFolder" styleClass="ghost-button" text="打开目录" GridPane.columnIndex="0" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
+                                                    <Button fx:id="importSelectedHelpRequestButton" maxWidth="Infinity" onAction="#importSelectedHelpRequest" styleClass="ghost-button" text="导入需求" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
+                                                </GridPane>
+                                                <HBox fillHeight="true" spacing="10" styleClass="ai-hint-row">
+                                                    <VBox spacing="6" styleClass="inline-note ai-hint-card" HBox.hgrow="ALWAYS">
+                                                        <Label styleClass="section-title" text="队列式执行" />
+                                                        <Label styleClass="muted-text" text="AI 生成 JSON 任务，你逐条确认执行。" wrapText="true" />
                                                     </VBox>
-                                                    <VBox spacing="10">
-                                                        <VBox spacing="8" styleClass="inline-note">
-                                                            <Label styleClass="section-title" text="运行方式" />
-                                                            <Label styleClass="muted-text" text="它不会在当前界面里直接聊天，而是打开一个可见的 AI Runner 会话窗口，Prompt 中会带上 relay-server、sessionId 和任务队列说明。" wrapText="true" />
-                                                        </VBox>
-                                                        <VBox spacing="8" styleClass="inline-note">
-                                                            <Label styleClass="section-title" text="适合直接输入的内容" />
-                                                            <Label styleClass="list-line-muted" text="排查为什么项目启动失败，并尽量修复。" wrapText="true" />
-                                                            <Label styleClass="list-line-muted" text="先浏览目录结构，再读取关键配置文件，然后总结问题。" wrapText="true" />
-                                                            <Label styleClass="list-line-muted" text="只检查，不修改；先给我结论和风险点。" wrapText="true" />
-                                                        </VBox>
+                                                    <VBox spacing="6" styleClass="inline-note ai-hint-card" HBox.hgrow="ALWAYS">
+                                                        <Label styleClass="section-title" text="安全边界" />
+                                                        <Label styleClass="safe-line" text="不隐藏运行，不绕过授权目录。" wrapText="true" />
                                                     </VBox>
-                                                </items>
-                                            </SplitPane>
+                                                </HBox>
+                                                <Label fx:id="directAiStatusLabel" styleClass="value-text" text="连接远程设备后，可以直接在这里给 AI 下达远程协助目标。" wrapText="true" />
+                                            </VBox>
                                         </center>
                                     </BorderPane>
                                 </Tab>
@@ -119,12 +114,12 @@
                                             <VBox spacing="10">
                                                 <HBox alignment="CENTER_LEFT" spacing="10">
                                                     <VBox spacing="4" HBox.hgrow="ALWAYS">
-                                                        <Label styleClass="section-title" text="被协助方提交的需求" />
-                                                        <Label styleClass="muted-text" text="先审核需求；批准后会按当前 Runner 选择打开可见 AI 会话，不会隐藏执行。" wrapText="true" />
+                                                        <Label styleClass="section-title-large" text="被协助方提交的需求" />
+                                                        <Label styleClass="muted-text" text="先审核需求；批准后按当前 Runner 打开可见 AI 会话。" wrapText="true" />
                                                     </VBox>
                                                     <Button fx:id="refreshHelpRequestsButton" onAction="#refreshHelpRequests" styleClass="ghost-button" text="刷新" />
                                                 </HBox>
-                                                <HBox alignment="CENTER_LEFT" spacing="10">
+                                                <HBox alignment="CENTER_LEFT" spacing="9">
                                                     <Button fx:id="approveHelpRequestButton" onAction="#approveSelectedHelpRequest" styleClass="success-button" text="批准并启动 Codex" />
                                                     <Button fx:id="rejectHelpRequestButton" onAction="#rejectSelectedHelpRequest" styleClass="danger-button" text="拒绝需求" />
                                                     <Button fx:id="relaunchAiButton" onAction="#relaunchAiForSelectedHelpRequest" styleClass="warning-button" text="重新启动 AI" />
@@ -141,13 +136,13 @@
                                 <Tab text="文件浏览">
                                     <BorderPane styleClass="tab-surface">
                                         <top>
-                                            <VBox spacing="10">
-                                                <HBox spacing="10">
+                                            <VBox spacing="9">
+                                                <HBox spacing="9">
                                                     <TextField fx:id="listDirPathField" promptText="目录路径，默认 ." text="." HBox.hgrow="ALWAYS" />
                                                     <Button fx:id="debugListDirButton" onAction="#listDir" styleClass="primary-button" text="刷新目录" />
                                                     <Button fx:id="listRootButton" onAction="#listRootDir" styleClass="ghost-button" text="查看授权根目录" />
                                                 </HBox>
-                                                <HBox spacing="10">
+                                                <HBox spacing="9">
                                                     <TextField fx:id="readFilePathField" promptText="文件路径，例如 pom.xml" HBox.hgrow="ALWAYS" />
                                                     <Button fx:id="readFileButton" onAction="#readFile" styleClass="primary-button" text="读取文件" />
                                                 </HBox>
@@ -155,9 +150,11 @@
                                         </top>
                                         <center>
                                             <VBox alignment="CENTER" spacing="12" styleClass="empty-state">
-                                                <Label styleClass="empty-icon" text="FILES" />
+                                                <StackPane styleClass="icon-box">
+                                                    <SVGPath styleClass="icon-svg-blue" content="M3 6.5C3 5.12 4.12 4 5.5 4h4.2l1.6 1.8h7.2C19.88 5.8 21 6.92 21 8.3v8.2c0 1.38-1.12 2.5-2.5 2.5h-13C4.12 19 3 17.88 3 16.5v-10z" />
+                                                </StackPane>
                                                 <Label styleClass="empty-title" text="暂无文件列表" />
-                                                <Label maxWidth="420" styleClass="muted-text" text="连接远程设备后，点击“查看授权根目录”获取对方授权目录内容；文件读取结果会同步显示到任务输出。" textAlignment="CENTER" wrapText="true" />
+                                                <Label maxWidth="440" styleClass="muted-text" text="连接远程设备后，点击“查看授权根目录”获取对方授权目录内容；文件读取结果会同步显示到任务输出。" textAlignment="CENTER" wrapText="true" />
                                                 <HBox alignment="CENTER" spacing="10">
                                                     <Button onAction="#listRootDir" styleClass="primary-button" text="查看授权目录" />
                                                     <Button onAction="#listDir" styleClass="ghost-button" text="刷新" />
@@ -172,9 +169,9 @@
                                         <top>
                                             <GridPane hgap="10" vgap="10">
                                                 <Label styleClass="field-name" text="命令" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                                                <TextField fx:id="commandField" promptText="例如 mvn test" GridPane.columnIndex="1" GridPane.columnSpan="3" GridPane.rowIndex="0" />
+                                                <TextField fx:id="commandField" promptText="例如 mvn test" GridPane.columnIndex="1" GridPane.columnSpan="3" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0" />
                                                 <Label styleClass="field-name" text="工作目录" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                                                <TextField fx:id="commandCwdField" promptText="默认 ." text="." GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                                <TextField fx:id="commandCwdField" promptText="默认 ." text="." GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
                                                 <Label styleClass="field-name" text="超时" GridPane.columnIndex="2" GridPane.rowIndex="1" />
                                                 <TextField fx:id="timeoutField" prefWidth="90" promptText="秒" text="30" GridPane.columnIndex="3" GridPane.rowIndex="1" />
                                                 <Button fx:id="runCommandButton" onAction="#runCommand" styleClass="warning-button" text="执行命令" GridPane.columnIndex="4" GridPane.rowIndex="1" />
@@ -189,7 +186,7 @@
                                 <Tab text="任务输出">
                                     <BorderPane styleClass="tab-surface">
                                         <top>
-                                            <HBox spacing="10">
+                                            <HBox spacing="9">
                                                 <TextField fx:id="logsTaskIdField" promptText="任务 ID，执行任务后自动填入" HBox.hgrow="ALWAYS" />
                                                 <Button fx:id="getLogsButton" onAction="#getLogs" styleClass="primary-button" text="查看任务日志" />
                                                 <Button fx:id="generateReportButton" onAction="#generateReport" styleClass="ghost-button" text="生成报告" />
@@ -205,7 +202,7 @@
                                     <BorderPane styleClass="tab-surface">
                                         <top>
                                             <HBox alignment="CENTER_LEFT" spacing="10">
-                                                <Label styleClass="section-title" text="报告预览" />
+                                                <Label styleClass="section-title-large" text="报告预览" />
                                                 <Region HBox.hgrow="ALWAYS" />
                                                 <Button onAction="#generateReport" styleClass="primary-button" text="生成 report.md" />
                                             </HBox>
@@ -220,9 +217,9 @@
                     </center>
                 </BorderPane>
 
-                <VBox spacing="12" minWidth="300" prefWidth="320" styleClass="workspace-side">
+                <VBox spacing="10" minWidth="232" prefWidth="268" styleClass="workspace-side">
                     <VBox spacing="8" styleClass="summary-card">
-                        <Label styleClass="section-title" text="远程设备信息" />
+                        <Label styleClass="section-title-large" text="远程设备" />
                         <Label fx:id="notConnectedHint" styleClass="muted-text" text="请先输入连接码连接远程设备。" wrapText="true" />
                         <Label styleClass="field-name" text="deviceId" />
                         <Label fx:id="deviceIdLabel" styleClass="value-text" text="-" wrapText="true" />
@@ -231,24 +228,24 @@
                     </VBox>
 
                     <VBox spacing="8" styleClass="summary-card">
-                        <Label styleClass="section-title" text="授权能力" />
+                        <Label styleClass="section-title-large" text="授权能力" />
                         <Label fx:id="permissionsLabel" styleClass="value-text" wrapText="true" />
-                        <Label styleClass="safe-line" text="读文件 / 写文件 / 执行命令均受授权目录限制" wrapText="true" />
+                        <Label styleClass="safe-line" text="所有操作均受授权目录限制" wrapText="true" />
+                    </VBox>
+
+                    <VBox spacing="8" styleClass="summary-card" VBox.vgrow="ALWAYS">
+                        <Label styleClass="section-title-large" text="任务日志摘要" />
+                        <TextArea fx:id="taskLogsArea" editable="false" prefRowCount="8" promptText="连接和任务日志会显示在这里。" styleClass="mono-area" wrapText="true" VBox.vgrow="ALWAYS" />
                     </VBox>
 
                     <VBox spacing="8" styleClass="summary-card">
-                        <Label styleClass="section-title" text="任务日志摘要" />
-                        <TextArea fx:id="taskLogsArea" editable="false" prefRowCount="9" promptText="连接和任务日志会显示在这里。" styleClass="mono-area" wrapText="true" />
-                    </VBox>
-
-                    <VBox spacing="8" styleClass="summary-card">
-                        <Label styleClass="section-title" text="风险提示" />
+                        <Label styleClass="section-title-large" text="风险提示" />
                         <Label styleClass="safe-line" text="仅访问对方授权目录，所有操作对被协助者可见，可随时断开。" wrapText="true" />
                     </VBox>
                 </VBox>
             </items>
             <BorderPane.margin>
-                <Insets bottom="12" left="24" right="24" top="0" />
+                <Insets bottom="10" left="12" right="12" top="0" />
             </BorderPane.margin>
         </SplitPane>
     </center>
@@ -260,7 +257,7 @@
                 <Button fx:id="debugGetLogsButton" onAction="#getLogs" text="get_logs" GridPane.columnIndex="1" GridPane.rowIndex="0" />
             </GridPane>
             <BorderPane.margin>
-                <Insets bottom="18" left="24" right="24" top="0" />
+                <Insets bottom="14" left="12" right="12" top="0" />
             </BorderPane.margin>
         </TitledPane>
     </bottom>

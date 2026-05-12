@@ -7,7 +7,6 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Priority?>
-<?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane styleClass="embedded-page" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
@@ -15,11 +14,11 @@
         <HBox alignment="CENTER_LEFT" spacing="12" styleClass="compact-header">
             <VBox spacing="4" HBox.hgrow="ALWAYS">
                 <Label styleClass="page-title" text="关于" />
-                <Label styleClass="section-caption" text="AI Remote Helper 0.1.4" wrapText="true" />
+                <Label styleClass="section-caption" text="AI Remote Helper 0.1.5 · LAN Edition" wrapText="true" />
             </VBox>
-            <Label styleClass="mode-pill" text="LAN Edition" />
+            <Label styleClass="mode-pill" text="Visible / Authorized" />
             <padding>
-                <Insets bottom="16" left="24" right="24" top="18" />
+                <Insets bottom="14" left="24" right="24" top="18" />
             </padding>
         </HBox>
     </top>
@@ -28,34 +27,36 @@
         <VBox spacing="16" styleClass="info-page-body">
             <GridPane hgap="16" vgap="16">
                 <columnConstraints>
-                    <ColumnConstraints hgrow="ALWAYS" percentWidth="25" />
-                    <ColumnConstraints hgrow="ALWAYS" percentWidth="50" />
-                    <ColumnConstraints hgrow="ALWAYS" percentWidth="25" />
+                    <ColumnConstraints hgrow="ALWAYS" percentWidth="38" />
+                    <ColumnConstraints hgrow="ALWAYS" percentWidth="31" />
+                    <ColumnConstraints hgrow="ALWAYS" percentWidth="31" />
                 </columnConstraints>
-                <rowConstraints>
-                    <RowConstraints vgrow="NEVER" />
-                    <RowConstraints vgrow="NEVER" />
-                    <RowConstraints percentHeight="100" vgrow="ALWAYS" />
-                </rowConstraints>
 
-                <VBox maxWidth="Infinity" spacing="10" styleClass="panel" GridPane.columnIndex="0" GridPane.columnSpan="2" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0">
-                    <Label styleClass="section-title" text="项目说明" />
-                    <Label styleClass="muted-text" text="AI Remote Helper 是面向 AI 编程工具的授权远程开发协助平台。被协助者在本机运行可见的 JavaFX Agent 客户端并主动选择授权目录后，协助者才能连接、浏览授权目录、执行命令并查看结果。" wrapText="true" />
-                    <Label styleClass="muted-text" text="适合局域网内结对排障、课程项目协助和受控目录内的 AI 辅助开发。" wrapText="true" />
+                <VBox maxWidth="Infinity" spacing="10" styleClass="panel" GridPane.columnIndex="0" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0">
+                    <Label styleClass="section-title-large" text="项目定位" />
+                    <Label styleClass="muted-text" text="AI Remote Helper 是面向 AI 编程工具的授权远程开发协助平台。被协助者运行可见的 JavaFX Agent 并主动选择授权目录后，协助者才能连接、浏览文件、执行命令和查看结果。" wrapText="true" />
+                    <Label styleClass="muted-text" text="它适合局域网内结对排障、课程项目协助和受控目录内的 AI 辅助开发。" wrapText="true" />
                 </VBox>
 
-                <VBox maxWidth="Infinity" spacing="9" styleClass="panel" GridPane.columnIndex="2" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0">
-                    <Label styleClass="section-title" text="版本信息" />
+                <VBox maxWidth="Infinity" spacing="9" styleClass="panel" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0">
+                    <Label styleClass="section-title-large" text="版本信息" />
                     <Label styleClass="field-name" text="版本号" />
-                    <Label styleClass="value-text" text="0.1.4" wrapText="true" />
+                    <Label styleClass="value-strong" text="0.1.5" wrapText="true" />
                     <Label styleClass="field-name" text="工作模式" />
                     <Label styleClass="value-text" text="局域网优先 / Local Only" wrapText="true" />
                     <Label styleClass="field-name" text="运行环境" />
                     <Label styleClass="value-text" text="JavaFX 21 桌面客户端" wrapText="true" />
                 </VBox>
 
+                <VBox maxWidth="Infinity" spacing="9" styleClass="panel" GridPane.columnIndex="2" GridPane.hgrow="ALWAYS" GridPane.rowIndex="0">
+                    <Label styleClass="section-title-large" text="适用场景" />
+                    <Label styleClass="list-line-muted" text="局域网内课程项目协助" wrapText="true" />
+                    <Label styleClass="list-line-muted" text="受控目录内代码排障" wrapText="true" />
+                    <Label styleClass="list-line-muted" text="AI 工具辅助远程开发" wrapText="true" />
+                </VBox>
+
                 <VBox maxWidth="Infinity" spacing="9" styleClass="panel" GridPane.columnIndex="0" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1">
-                    <Label styleClass="section-title" text="安全边界" />
+                    <Label styleClass="section-title-large" text="安全边界" />
                     <Label styleClass="list-line" text="不隐藏运行" wrapText="true" />
                     <Label styleClass="list-line" text="不开机自启" wrapText="true" />
                     <Label styleClass="list-line" text="不提权" wrapText="true" />
@@ -64,7 +65,7 @@
                 </VBox>
 
                 <VBox maxWidth="Infinity" spacing="9" styleClass="panel" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1">
-                    <Label styleClass="section-title" text="当前限制" />
+                    <Label styleClass="section-title-large" text="当前限制" />
                     <Label styleClass="list-line-muted" text="暂不支持公网穿透" wrapText="true" />
                     <Label styleClass="list-line-muted" text="暂不接管整台电脑" wrapText="true" />
                     <Label styleClass="list-line-muted" text="命令执行受授权目录限制" wrapText="true" />
@@ -72,34 +73,28 @@
                 </VBox>
 
                 <VBox maxWidth="Infinity" spacing="9" styleClass="panel" GridPane.columnIndex="2" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1">
-                    <Label styleClass="section-title" text="后续计划" />
-                    <Label styleClass="list-line-muted" text="文件表格视图" wrapText="true" />
-                    <Label styleClass="list-line-muted" text="更完整的任务报告" wrapText="true" />
-                    <Label styleClass="list-line-muted" text="更好的连接状态提示" wrapText="true" />
-                    <Label styleClass="list-line-muted" text="打包安装器" wrapText="true" />
-                </VBox>
-
-                <VBox maxHeight="Infinity" maxWidth="Infinity" spacing="12" styleClass="stretch-panel" GridPane.columnIndex="0" GridPane.columnSpan="2" GridPane.hgrow="ALWAYS" GridPane.rowIndex="2" GridPane.vgrow="ALWAYS">
-                    <Label styleClass="section-title" text="工作方式" />
-                    <GridPane hgap="10" vgap="10">
-                        <Label styleClass="flow-step" text="1. Agent 可见运行" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                        <Label styleClass="flow-step" text="2. 用户主动授权目录" GridPane.columnIndex="1" GridPane.rowIndex="0" />
-                        <Label styleClass="flow-step" text="3. relay-server 转发任务" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                        <Label styleClass="flow-step" text="4. 操作日志实时展示" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                    </GridPane>
-                </VBox>
-
-                <VBox maxHeight="Infinity" maxWidth="Infinity" spacing="9" styleClass="stretch-panel" GridPane.columnIndex="2" GridPane.hgrow="ALWAYS" GridPane.rowIndex="2" GridPane.vgrow="ALWAYS">
-                    <Label styleClass="section-title" text="适用场景" />
-                    <Label styleClass="list-line-muted" text="局域网内课程项目协助" wrapText="true" />
-                    <Label styleClass="list-line-muted" text="受控目录内代码排障" wrapText="true" />
-                    <Label styleClass="list-line-muted" text="AI 工具辅助远程开发" wrapText="true" />
+                    <Label styleClass="section-title-large" text="后续计划" />
+                    <Label styleClass="list-line-muted" text="更完整的任务队列视图" wrapText="true" />
+                    <Label styleClass="list-line-muted" text="更好的连接诊断提示" wrapText="true" />
+                    <Label styleClass="list-line-muted" text="Windows 安装器与签名" wrapText="true" />
+                    <Label styleClass="list-line-muted" text="公开演示素材" wrapText="true" />
                 </VBox>
             </GridPane>
+
+            <HBox alignment="CENTER_LEFT" fillHeight="false" spacing="14" styleClass="info-callout">
+                <VBox spacing="4" HBox.hgrow="ALWAYS">
+                    <Label styleClass="section-title" text="工作方式" />
+                    <Label styleClass="muted-text" text="Agent 可见运行，用户主动授权目录，relay-server 转发任务，操作日志实时展示。" wrapText="true" />
+                </VBox>
+                <Label styleClass="flow-step" text="1. 可见运行" />
+                <Label styleClass="flow-step" text="2. 授权目录" />
+                <Label styleClass="flow-step" text="3. 转发任务" />
+                <Label styleClass="flow-step" text="4. 日志审计" />
+            </HBox>
         </VBox>
     </center>
 
     <padding>
-        <Insets bottom="24" left="24" right="24" top="0" />
+        <Insets bottom="22" left="24" right="24" top="0" />
     </padding>
 </BorderPane>

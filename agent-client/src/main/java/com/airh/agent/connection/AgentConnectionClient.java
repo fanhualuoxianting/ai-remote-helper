@@ -33,7 +33,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 public class AgentConnectionClient {
-    private static final String CLIENT_VERSION = "0.1.4";
+    private static final String CLIENT_VERSION = "0.1.5";
     private static final int RECONNECT_DELAY_SECONDS = 3;
 
     private final String deviceId;
