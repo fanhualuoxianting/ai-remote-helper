@@ -1,14 +1,19 @@
 package com.airh.agent.safety;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Objects;
 
 public class PathSandbox {
     private final Path authorizedDirectory;
+    private final Path authorizedRealDirectory;
 
     public PathSandbox(Path authorizedDirectory) {
         Objects.requireNonNull(authorizedDirectory, "authorizedDirectory must not be null");
         this.authorizedDirectory = authorizedDirectory.toAbsolutePath().normalize();
+        this.authorizedRealDirectory = resolveRealPath(this.authorizedDirectory);
     }
 
     public boolean isUnderAuthorizedDir(Path target) {
@@ -18,7 +23,14 @@ public class PathSandbox {
         Path normalizedTarget = target.isAbsolute()
                 ? target.toAbsolutePath().normalize()
                 : authorizedDirectory.resolve(target).normalize();
-        return normalizedTarget.startsWith(authorizedDirectory);
+        if (!normalizedTarget.startsWith(authorizedDirectory)) {
+            return false;
+        }
+        try {
+            return nearestExistingRealPath(normalizedTarget).startsWith(authorizedRealDirectory);
+        } catch (IOException exception) {
+            return false;
+        }
     }
 
     public Path resolveSecurely(String relativePath) {
@@ -31,8 +43,16 @@ public class PathSandbox {
         }
 
         Path resolvedPath = authorizedDirectory.resolve(requestedPath).normalize();
-        if (!isUnderAuthorizedDir(resolvedPath)) {
+        if (!resolvedPath.startsWith(authorizedDirectory)) {
             throw new SecurityException("路径越界，拒绝访问：" + relativePath);
+        }
+        try {
+            Path realAncestor = nearestExistingRealPath(resolvedPath);
+            if (!realAncestor.startsWith(authorizedRealDirectory)) {
+                throw new SecurityException("路径通过符号链接越过授权目录，拒绝访问：" + relativePath);
+            }
+        } catch (IOException exception) {
+            throw new SecurityException("无法验证路径安全性：" + relativePath, exception);
         }
         return resolvedPath;
     }
@@ -46,5 +66,24 @@ public class PathSandbox {
 
     public Path authorizedDirectory() {
         return authorizedDirectory;
+    }
+
+    private Path nearestExistingRealPath(Path path) throws IOException {
+        Path candidate = path;
+        while (candidate != null && !Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) {
+            candidate = candidate.getParent();
+        }
+        if (candidate == null) {
+            throw new IOException("No existing ancestor for path: " + path);
+        }
+        return candidate.toRealPath();
+    }
+
+    private Path resolveRealPath(Path path) {
+        try {
+            return path.toRealPath();
+        } catch (IOException exception) {
+            return path;
+        }
     }
 }

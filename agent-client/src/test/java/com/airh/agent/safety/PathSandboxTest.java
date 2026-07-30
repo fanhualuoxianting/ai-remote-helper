@@ -3,6 +3,8 @@ package com.airh.agent.safety;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,5 +32,27 @@ class PathSandboxTest {
 
         assertThrows(SecurityException.class, () -> sandbox.resolveSecurely("../../../etc/passwd"));
         assertFalse(sandbox.isUnderAuthorizedDir(authorizedDirectory.resolve("../../../etc/passwd").normalize()));
+    }
+
+    @Test
+    void rejectsAbsolutePath() {
+        PathSandbox sandbox = new PathSandbox(authorizedDirectory);
+        assertThrows(SecurityException.class,
+                () -> sandbox.resolveSecurely(authorizedDirectory.getRoot().resolve("outside.txt").toString()));
+    }
+
+    @Test
+    void blocksSymbolicLinkEscapeWhenSupported() throws IOException {
+        Path outside = Files.createTempDirectory(authorizedDirectory.getParent(), "airh-outside-");
+        Path link = authorizedDirectory.resolve("outside-link");
+        try {
+            Files.createSymbolicLink(link, outside);
+        } catch (UnsupportedOperationException | SecurityException | IOException exception) {
+            return;
+        }
+
+        PathSandbox sandbox = new PathSandbox(authorizedDirectory);
+        assertThrows(SecurityException.class, () -> sandbox.resolveSecurely("outside-link/secret.txt"));
+        assertFalse(sandbox.isUnderAuthorizedDir(link.resolve("secret.txt")));
     }
 }
