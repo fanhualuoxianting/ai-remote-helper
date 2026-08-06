@@ -1,36 +1,26 @@
 # AI Remote Helper
 
-[中文说明](README.zh-CN.md) | [Download latest Windows LAN release](https://github.com/fanhualuoxianting/ai-remote-helper/releases/latest)
+[中文说明](README.zh-CN.md) · [Latest Windows LAN release](https://github.com/fanhualuoxianting/ai-remote-helper/releases/latest)
+
+[![CI](https://github.com/fanhualuoxianting/ai-remote-helper/actions/workflows/ci.yml/badge.svg)](https://github.com/fanhualuoxianting/ai-remote-helper/actions/workflows/ci.yml)
+
+AI Remote Helper is a **visible, consent-based remote development assistance platform** for AI coding workflows. It connects a JavaFX desktop agent, a Spring Boot relay service, and an MCP-compatible bridge while constraining file and command operations to a workspace explicitly selected by the assisted user.
+
+> **Project scope**
+> This repository is a local/LAN portfolio MVP, not a stealth remote-control product. The current AI integration launches visible Codex or OpenClaw sessions and transfers reviewed JSON tasks through the helper client or MCP bridge. It does **not** claim an embedded OpenAI Function Calling implementation.
 
 <p align="center">
   <img src="docs/assets/airh-demo.png" width="880" alt="AI Remote Helper desktop demo" />
 </p>
 
-AI Remote Helper is a visible, authorized remote development assistance platform for AI coding workflows. It lets a helper or AI tool operate only inside a directory that the assisted user explicitly selects, while the assisted user keeps a desktop client open and can see logs, results, and disconnect controls.
+## What This Project Demonstrates
 
-This project is designed for legitimate pair-programming and troubleshooting scenarios. It is not a hidden remote-control tool.
-
-## What It Does
-
-- Provides a JavaFX desktop Agent Client for the assisted user.
-- Uses a Spring Boot Relay Server to manage sessions, task routing, logs, and audit records.
-- Exposes an MCP Bridge so tools such as OpenClaw, Codex, or Claude-compatible clients can request authorized file and command operations.
-- Restricts file and command operations to the user-selected workspace.
-- Blocks sensitive files, path traversal, and dangerous commands.
-- Generates task logs, file-change records, and session reports.
-- Lets the assisted user submit natural-language help requests that the helper reviews before launching a local AI session.
-- Supports a LAN packaging flow for Windows app-image distribution.
-
-## Current Status
-
-This repository is a public MVP / portfolio-ready version. The core safety model, relay flow, JavaFX client, MCP bridge, LAN packaging scripts, and documentation are present. It is suitable for local development, demonstrations, and further hardening.
-
-Recommended next steps before real-world use:
-
-- Add authentication and authorization hardening for shared or public networks.
-- Replace development database credentials with environment-specific configuration.
-- Add more integration tests around WebSocket task routing.
-- Publish signed release artifacts through GitHub Releases rather than committing build outputs.
+- **End-to-end task routing:** request review, session creation, relay dispatch, remote execution, result collection, and report generation.
+- **Explicit user control:** the assisted user chooses the workspace, keeps the desktop client visible, sees logs, and can disconnect at any time.
+- **Workspace sandboxing:** path normalization, traversal protection, sensitive-file blocking, and command risk classification.
+- **Auditable execution:** task state, command output, file changes, errors, and audit events are recorded instead of hidden.
+- **AI-tool interoperability:** a visible Codex/OpenClaw runner and an MCP-compatible bridge can submit structured operations without bypassing server-side checks.
+- **Desktop delivery:** the JavaFX client can be packaged as a Windows app-image for LAN demonstrations.
 
 ## Architecture
 
@@ -39,58 +29,43 @@ Recommended next steps before real-world use:
 </p>
 
 ```text
-AI Tool / MCP Client
-        |
-        v
-   MCP Bridge
-        |
-        v
-   Relay Server  <---->  PostgreSQL / Redis
-        |
-        v
-   Agent Client
-        |
-        v
-Authorized Project Directory
+Codex / OpenClaw / MCP client
+             |
+             v
+        MCP Bridge
+             |
+             v
+        Relay Server  <---->  PostgreSQL / Redis
+             |
+             v
+      JavaFX Agent Client
+             |
+             v
+   User-authorized workspace
 ```
 
-Modules:
-
-| Module | Purpose |
+| Module | Responsibility |
 | --- | --- |
-| `common-protocol` | Shared DTOs, message types, task states, and enums. |
+| `common-protocol` | Shared DTOs, task states, message types, and enums. |
 | `common-safety` | Path sandboxing, sensitive-file protection, and command risk detection. |
-| `relay-server` | Spring Boot relay for devices, sessions, tasks, logs, audit events, and WebSocket routing. |
-| `agent-client` | JavaFX desktop client for directory authorization, connection, task execution, and visible logs. |
-| `mcp-bridge` | MCP-compatible bridge that forwards AI tool requests to the relay. |
-| `web-console` | Vue-based web console prototype for monitoring and administration. |
+| `relay-server` | Device/session management, task routing, logs, audit events, and WebSocket communication. |
+| `agent-client` | Visible JavaFX client for authorization, execution, logs, review, and disconnect controls. |
+| `mcp-bridge` | MCP-compatible adapter that forwards approved tool requests to the relay. |
+| `web-console` | Vue monitoring-console prototype; it is not required for the desktop demo. |
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for more detail.
+## Demonstrable Workflow
 
-## Desktop Workflow
+1. The assisted user starts the Agent Client and selects an authorized project directory.
+2. The helper connects with the generated connection code.
+3. The assisted user submits a natural-language help request.
+4. The helper reviews and approves the request.
+5. A visible Codex/OpenClaw session writes a structured task into the local queue, or an MCP client submits an allowed tool request.
+6. The helper client sends the task through the relay; the remote agent executes it only inside the authorized workspace.
+7. Logs, task results, file-change records, and a session report are returned to the visible UI.
 
-| Assisted Agent Client | Helper Review Workbench |
-| --- | --- |
-| <img src="docs/assets/agent-client.png" width="420" alt="Assisted user agent client" /> | <img src="docs/assets/helper-review.png" width="420" alt="Helper review workbench" /> |
+## Quick Start
 
-## Safety Boundaries
-
-AI Remote Helper intentionally does not implement stealth or persistence behavior.
-
-It does not:
-
-- Hide the Agent Client window.
-- Start automatically on boot.
-- Install a system service.
-- Request administrator privileges by default.
-- Bypass the authorized directory.
-- Take over mouse or keyboard input.
-- Disable firewalls or security software.
-- Read browser data, SSH private keys, or system credentials.
-
-See [SECURITY.md](SECURITY.md) for the full security model.
-
-## 3-Minute Local Demo
+Requirements: Java 21+, Maven 3.9+, Docker Compose, and Windows 10/11 for JavaFX packaging.
 
 ```powershell
 git clone https://github.com/fanhualuoxianting/ai-remote-helper.git
@@ -102,177 +77,62 @@ scripts\start-relay-lan.bat
 mvn -f agent-client/pom.xml javafx:run
 ```
 
-Demo scenario:
-
-1. Assisted user selects a workspace.
-2. Helper connects using the session code.
-3. Assisted user submits a natural-language request.
-4. Helper reviews and approves the request.
-5. Codex or OpenClaw writes a JSON task into the local AI queue.
-6. Agent executes file or command operations inside the authorized directory.
-7. Logs, task results, and report output are returned visibly.
-
-## Requirements
-
-- Java 21+
-- Maven 3.9+
-- PostgreSQL for relay persistence
-- Redis for online session/cache state
-- Node.js 18+ if you want to run the Web Console
-- Windows 10/11 with `jpackage` for LAN app-image packaging
-
-## Quick Start
-
-Build all Java modules:
+Optional components:
 
 ```powershell
-mvn clean package
-```
-
-Run the Relay Server:
-
-```powershell
-mvn -f relay-server/pom.xml spring-boot:run
-```
-
-For Windows LAN demos, the helper can use the wrapper script below. It starts local Docker dependencies when available and runs the Relay Server on port `18080`, avoiding common conflicts with local Tomcat on `8080`:
-
-```powershell
-scripts\start-relay-lan.bat
-```
-
-Run the Agent Client:
-
-```powershell
-mvn -f agent-client/pom.xml javafx:run
-```
-
-Run the MCP Bridge:
-
-```powershell
+# MCP bridge
 mvn -f mcp-bridge/pom.xml spring-boot:run
-```
 
-Run the Web Console:
-
-```powershell
+# Vue console prototype
 cd web-console
 npm install
 npm run dev
 ```
 
-Default local development endpoints:
+Default development endpoints and LAN troubleshooting are documented in [docs/LAN_MODE.md](docs/LAN_MODE.md).
 
-- Relay Server: `http://localhost:8080`
-- LAN Relay helper script: `http://localhost:18080`
-- MCP Bridge SSE: `http://localhost:9090/mcp/sse`
-- Web Console: `http://localhost:3000`
+## Security Boundaries
 
-## Local Development Configuration
+AI Remote Helper intentionally does not:
 
-The default relay configuration is intended for local development:
+- hide the desktop client or run silently;
+- install persistence or start automatically at boot;
+- request administrator privileges by default;
+- take over mouse or keyboard input;
+- bypass the authorized workspace;
+- read browser data, SSH private keys, or system credentials;
+- disable firewalls, security software, or audit logging.
 
-- PostgreSQL: `localhost:15432`
-- Database: `testdb`
-- Username/password: `postgres/postgres`
-- Redis: `localhost:16379`
+The full model, blocked paths, and command-risk rules are documented in [SECURITY.md](SECURITY.md).
 
-Do not reuse these development credentials in production or on a shared network. Override them with environment-specific configuration before deployment.
+## Verification
 
-## Basic Usage
-
-Assisted user:
-
-1. Start the Agent Client.
-2. Choose `我需要别人帮忙`.
-3. Select a project directory as the authorized workspace.
-4. Enter the helper machine's LAN IP and relay port.
-5. Test the connection, connect, and share the generated connection code.
-6. Optionally open `提交需求` and describe what you want the helper's AI to do.
-7. Watch all operations in the visible Agent Client window and disconnect at any time.
-
-Helper:
-
-1. Start the Relay Server. On Windows LAN demos, prefer `scripts\start-relay-lan.bat`.
-2. Start the Agent Client and choose `我要帮别人处理项目`, or connect through the MCP Bridge.
-3. Enter the assisted user's connection code.
-4. Click `一键链路自检` after connecting to verify directory listing, task dispatch, and result return.
-5. Review pending requests in `需求审核`; approving a request opens a visible PowerShell/Codex session on the helper machine.
-6. In `AI 协助`, let the AI write JSON task files into its work directory, then click `执行下一条 AI 任务` so the JavaFX client submits them through the relay on the AI's behalf.
-7. Browse authorized files, run allowed commands, inspect logs, and generate reports.
-
-LAN details are documented in [docs/LAN_MODE.md](docs/LAN_MODE.md).
-
-## LAN Troubleshooting
-
-If a connection becomes unstable:
-
-- Confirm both machines are on the same LAN and the assisted user is using the helper machine's LAN address, for example `http://192.168.x.x:18080`.
-- Confirm the Relay Server is still running with `scripts\start-relay-lan.bat` and that Windows Firewall allows the port.
-- Ask the assisted user to reconnect and share the new connection code if the helper UI shows `远程设备离线`.
-- Use `一键链路自检` on the helper page. A passing self-test means `LIST_DIR .`, relay dispatch, and result return are working.
-- Tasks that do not return before their timeout are now marked `TIMEOUT` by the relay instead of staying `RUNNING` forever.
-- The assisted Agent Client automatically retries relay WebSocket reconnection after unexpected disconnects.
-- On Chinese Windows, command output defaults to `GBK` decoding to avoid mojibake. Override it when needed:
+The repository includes tests for path sandboxing, sensitive-file protection, command risk detection, task persistence, report generation, help-request handling, and MCP protocol behavior.
 
 ```powershell
-$env:AIRH_COMMAND_OUTPUT_CHARSET='UTF-8'
-# or JVM property:
-# -Dairh.commandOutputCharset=UTF-8
+mvn clean package
 ```
 
-## Windows LAN Packaging
+GitHub Actions builds and tests the Java modules, builds the Vue console, and performs a basic tracked-secret scan.
 
-Build a Windows app-image with bundled runtime:
+## Current Limitations
 
-```powershell
-agent-client\scripts\package-lan-windows.bat -Offline
-```
+- Authentication and authorization are designed for a trusted local/LAN demo and still require hardening before shared-network or Internet deployment.
+- The AI runner is externalized to visible Codex/OpenClaw processes; a direct model API planner is not implemented in this repository.
+- The Vue console is a prototype and currently has less automated coverage than the Java modules.
+- Release signing, SBOM generation, and automated Windows artifact publishing are not yet part of the delivery pipeline.
 
-The script writes output to `dist/AI-Remote-Helper-LAN/`. Build outputs are intentionally ignored by Git. If you want to distribute the app, zip the generated directory and upload it to a GitHub Release.
-
-See [docs/LAN_PACKAGING.md](docs/LAN_PACKAGING.md).
-
-## Startup Easter Egg
-
-The Matrix-style startup overlay is a default-off development easter egg. It only appears when explicitly enabled:
-
-```powershell
-$env:AIRH_STARTUP_EASTER_EGG='matrix'
-```
-
-or with JVM properties:
-
-```text
--Dairh.startupEasterEgg=matrix
--Dairh.startupEasterEggDuration=5
-```
-
-It is rendered inside the application window, can be skipped, and does not create OS-level popups or control user input.
-
-## Approved AI Runner
-
-The helper-side AI runner can now switch between `Codex` and `OpenClaw` from the helper UI. It is only launched after the helper approves a submitted request or clicks the direct AI entry, and it always opens as a visible PowerShell window without dangerous bypass flags.
-
-Optional environment variables:
-
-```powershell
-$env:AIRH_AI_RUNNER_COMMAND='codex'
-$env:AIRH_AI_RUNNER_COMMAND='openclaw'
-$env:AIRH_AI_RUNNER_WORKDIR="$env:USERPROFILE\.ai-remote-helper\ai-runs"
-```
-
-The generated prompt now prefers a local task-queue bridge. The AI writes JSON task files into its run directory, and the helper client executes them with its own Java `HttpClient`, which avoids child-shell WinSock issues while still staying inside the assisted user's authorized directory.
+Remaining work and acceptance criteria are tracked in [docs/CODEX_HANDOFF.md](docs/CODEX_HANDOFF.md).
 
 ## Documentation
 
-- [SECURITY.md](SECURITY.md)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- [docs/LAN_MODE.md](docs/LAN_MODE.md)
-- [docs/LAN_PACKAGING.md](docs/LAN_PACKAGING.md)
-- [docs/MCP_USAGE.md](docs/MCP_USAGE.md)
-- [docs/WEB_CONSOLE.md](docs/WEB_CONSOLE.md)
-- [docs/ROADMAP.md](docs/ROADMAP.md)
+- [Security model](SECURITY.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [LAN mode](docs/LAN_MODE.md)
+- [Windows packaging](docs/LAN_PACKAGING.md)
+- [MCP usage](docs/MCP_USAGE.md)
+- [Web console](docs/WEB_CONSOLE.md)
+- [Roadmap](docs/ROADMAP.md)
 
 ## License
 
